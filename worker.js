@@ -65,7 +65,6 @@ process.on('message', function(m) {
     if (sourceMap) {
       fs.writeFileSync(mapPath, sourceMap);
     }
-    console.log(path + " -> " + outPath);
     return process.send('complete');
   };
   applyNext = function() {

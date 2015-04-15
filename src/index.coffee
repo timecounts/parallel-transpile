@@ -57,14 +57,9 @@ class Queue extends EventEmitter
     @paused = true
     @queue = []
     @inProgress = []
-    @buckets = []
-    for i in [0..os.cpus().length]
-      bucket = new Bucket @options
-      bucket.on 'complete', @complete
-      @buckets.push bucket
-    process.on 'exit', @destroy
 
   destroy: =>
+    return unless @buckets
     process.removeListener 'exit', @destroy
     bucket.destroy() for bucket in @buckets
 
@@ -82,6 +77,12 @@ class Queue extends EventEmitter
     return
 
   run: ->
+    @buckets = []
+    for i in [0..os.cpus().length]
+      bucket = new Bucket @options
+      bucket.on 'complete', @complete
+      @buckets.push bucket
+    process.on 'exit', @destroy
     delete @paused
     @processNext()
 

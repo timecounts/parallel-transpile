@@ -92,7 +92,6 @@ Queue = (function(superClass) {
   extend(Queue, superClass);
 
   function Queue(options1, oneshot) {
-    var bucket, i, j, ref;
     this.options = options1;
     this.oneshot = oneshot;
     this.remove = bind(this.remove, this);
@@ -102,17 +101,13 @@ Queue = (function(superClass) {
     this.paused = true;
     this.queue = [];
     this.inProgress = [];
-    this.buckets = [];
-    for (i = j = 0, ref = os.cpus().length; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
-      bucket = new Bucket(this.options);
-      bucket.on('complete', this.complete);
-      this.buckets.push(bucket);
-    }
-    process.on('exit', this.destroy);
   }
 
   Queue.prototype.destroy = function() {
     var bucket, j, len, ref, results;
+    if (!this.buckets) {
+      return;
+    }
     process.removeListener('exit', this.destroy);
     ref = this.buckets;
     results = [];
@@ -142,6 +137,14 @@ Queue = (function(superClass) {
   };
 
   Queue.prototype.run = function() {
+    var bucket, i, j, ref;
+    this.buckets = [];
+    for (i = j = 0, ref = os.cpus().length; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
+      bucket = new Bucket(this.options);
+      bucket.on('complete', this.complete);
+      this.buckets.push(bucket);
+    }
+    process.on('exit', this.destroy);
     delete this.paused;
     return this.processNext();
   };
