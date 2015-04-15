@@ -1,0 +1,5 @@
+.gitignore
+.npmignore
+build
+src
+*.map
