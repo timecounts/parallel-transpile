@@ -31,23 +31,21 @@ process.on 'message', (m) ->
   relativePath = path.substr(source.length)
   outPath = "#{output}/#{swapExtension(relativePath, inExt, outExt)}"
   mapPath = "#{output}/#{swapExtension(relativePath, inExt, ".map")}"
-  loaderModules = []
   webpackLoaders = []
   for loader in loaders
     try
-      # TODO: support loader arguments
-      loaderModule = require(loader)
-      loaderModules.push loaderModule
+      [_, moduleName, query] = loader.match(/^([^?]+)(\?.*)?$/)
+      loaderModule = require(moduleName)
       webpackLoaders.push
         request: ""
         path: path
-        query: ""
+        query: query
         module: loaderModule
     catch err
       return send err
   src = fs.readFileSync(path, 'utf8')
   sourceMap = null
-  remainingLoaderModules = loaderModules[..]
+  remainingLoaderModules = webpackLoaders[..]
   i = remainingLoaderModules.length
 
   finished = ->
@@ -63,8 +61,9 @@ process.on 'message', (m) ->
     asyncCallback = false
     context =
       version: 1
-      request: ""
-      query: ""
+      path: next.path
+      request: next.request
+      query: next.query
       sourceMap: sourceMap
       loaderIndex: i
       loaders: webpackLoaders
@@ -79,7 +78,7 @@ process.on 'message', (m) ->
         sourceMap = map
         applyNext()
     try
-      out = next.call(context, src)
+      out = next.module.call(context, src)
       if !asyncCallback
         src = out
         applyNext()

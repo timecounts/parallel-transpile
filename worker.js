@@ -38,7 +38,7 @@ swapExtension = function(path, a, b) {
 };
 
 process.on('message', function(m) {
-  var applyNext, err, finished, i, inExt, j, len, loader, loaderModule, loaderModules, mapPath, outExt, outPath, path, ref, relativePath, remainingLoaderModules, sourceMap, src, webpackLoaders;
+  var _, applyNext, err, finished, i, inExt, j, len, loader, loaderModule, mapPath, moduleName, outExt, outPath, path, query, ref, ref1, relativePath, remainingLoaderModules, sourceMap, src, webpackLoaders;
   if (m.init) {
     return init(m.init);
   }
@@ -49,17 +49,16 @@ process.on('message', function(m) {
   relativePath = path.substr(source.length);
   outPath = output + "/" + (swapExtension(relativePath, inExt, outExt));
   mapPath = output + "/" + (swapExtension(relativePath, inExt, ".map"));
-  loaderModules = [];
   webpackLoaders = [];
   for (j = 0, len = loaders.length; j < len; j++) {
     loader = loaders[j];
     try {
-      loaderModule = require(loader);
-      loaderModules.push(loaderModule);
+      ref1 = loader.match(/^([^?]+)(\?.*)?$/), _ = ref1[0], moduleName = ref1[1], query = ref1[2];
+      loaderModule = require(moduleName);
       webpackLoaders.push({
         request: "",
         path: path,
-        query: "",
+        query: query,
         module: loaderModule
       });
     } catch (_error) {
@@ -69,7 +68,7 @@ process.on('message', function(m) {
   }
   src = fs.readFileSync(path, 'utf8');
   sourceMap = null;
-  remainingLoaderModules = loaderModules.slice(0);
+  remainingLoaderModules = webpackLoaders.slice(0);
   i = remainingLoaderModules.length;
   finished = function() {
     mkdirp.sync(Path.dirname(outPath));
@@ -89,8 +88,9 @@ process.on('message', function(m) {
     asyncCallback = false;
     context = {
       version: 1,
-      request: "",
-      query: "",
+      path: next.path,
+      request: next.request,
+      query: next.query,
       sourceMap: sourceMap,
       loaderIndex: i,
       loaders: webpackLoaders,
@@ -109,7 +109,7 @@ process.on('message', function(m) {
       }
     };
     try {
-      out = next.call(context, src);
+      out = next.module.call(context, src);
       if (!asyncCallback) {
         src = out;
         return applyNext();
