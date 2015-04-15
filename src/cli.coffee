@@ -1,4 +1,4 @@
-main = require './main'
+main = require './index'
 
 error = (message) ->
   message = message.toString()

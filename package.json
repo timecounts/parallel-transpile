@@ -3,8 +3,12 @@
   "version": "0.0.1",
   "description": "Transpile files in parallel using all available CPUs",
   "main": "index.js",
+  "bin": {
+    "parallel-transpile": "./bin/parallel-transpile"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "prepublish": "coffee -cbmo . src"
   },
   "repository": {
     "type": "git",
@@ -33,5 +37,8 @@
   "homepage": "https://github.com/timecounts/parallel-transpile",
   "dependencies": {
     "minimist": "^1.1.1"
+  },
+  "devDependencies": {
+    "coffee-script": "^1.9.1"
   }
 }
