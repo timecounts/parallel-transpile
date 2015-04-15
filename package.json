@@ -1,0 +1,34 @@
+{
+  "name": "parallel-transpile",
+  "version": "0.0.1",
+  "description": "Transpile files in parallel using all available CPUs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:timecounts/parallel-transpile.git"
+  },
+  "keywords": [
+    "transpile",
+    "compile",
+    "build",
+    "parallel",
+    "concurrent",
+    "multicore",
+    "processors",
+    "coffee",
+    "coffee-script",
+    "cjsx",
+    "stylus",
+    "less",
+    "jade"
+  ],
+  "author": "Benjie Gillam <benjie@jemjie.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/timecounts/parallel-transpile/issues"
+  },
+  "homepage": "https://github.com/timecounts/parallel-transpile"
+}
