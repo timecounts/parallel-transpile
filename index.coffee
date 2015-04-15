@@ -1,7 +1,9 @@
-fs = require 'fs'
+main = require './main'
 
 error = (message) ->
-  console.error "ERROR: #{message}"
+  message = message.toString()
+  message = "Error: #{message}" unless message.match /^Error/
+  console.error message
 
 usage = ->
   console.log """
@@ -64,7 +66,6 @@ if argv.help
   usage()
   process.exit(0)
 
-argv.source = argv._[0]
 if argv._.length < 1
   error("No input directory specified")
   usage()
@@ -75,15 +76,12 @@ if argv._.length > 1
   usage()
   process.exit(1)
 
-if !fs.existsSync(argv.source) or !fs.statSync(argv.source).isDirectory()
-  error("Input must be a directory")
-  process.exit(2)
+argv.source = argv._[0]
 
-if !argv.output
-  error("No output directory specified")
-  usage()
-  process.exit(1)
-
-if !fs.existsSync(argv.output) or !fs.statSync(argv.output).isDirectory()
-  error("Output option must be a directory")
-  process.exit(3)
+main argv, (err) ->
+  if err
+    error(err.toString())
+    if err.code is 1
+      usage()
+    process.exit(err.code ? 10)
+    return
