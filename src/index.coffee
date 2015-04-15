@@ -146,9 +146,6 @@ module.exports = (options, callback) ->
       outExt: outExt
 
 
-  console.dir options.rules
-
-
   if options.watch
     watchQueue = new Queue(options)
     watcher = chokidar.watch options.source
