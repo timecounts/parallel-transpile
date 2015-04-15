@@ -54,13 +54,12 @@ Bucket = (function(superClass) {
 
   Bucket.prototype.receive = function(message) {
     var task;
+    task = this.queue.shift();
+    this.perform();
     if (message === 'complete') {
-      task = this.queue.shift();
-      this.perform();
-      return this.emit('complete', this, task);
+      return this.emit('complete', this, null, task);
     } else {
-      console.error(message.toString());
-      return this.emit('complete', this, task);
+      return this.emit('complete', this, message, task);
     }
   };
 
@@ -118,10 +117,14 @@ Queue = (function(superClass) {
     return results;
   };
 
-  Queue.prototype.complete = function(bucket, task) {
+  Queue.prototype.complete = function(bucket, err, task) {
     var i, path;
     path = task.path;
-    console.log("[" + bucket.id + "] Processed: " + path);
+    if (err) {
+      console.log("[" + bucket.id + "] Failed: " + path);
+    } else {
+      console.log("[" + bucket.id + "] Processed: " + path);
+    }
     i = this.inProgress.indexOf(path);
     if (i === -1) {
       throw new Error("This shouldn't be able to happen");
@@ -172,7 +175,6 @@ Queue = (function(superClass) {
     var i;
     i = this.queue.indexOf(path);
     if (i !== -1) {
-      console.log("Unqueueing " + path);
       return this.queue.splice(i, 1);
     }
   };

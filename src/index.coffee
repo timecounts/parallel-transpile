@@ -31,13 +31,13 @@ class Bucket extends EventEmitter
     @child.on 'message', @receive
 
   receive: (message) =>
+    task = @queue.shift()
+    @perform()
     if message is 'complete'
-      task = @queue.shift()
-      @perform()
-      @emit 'complete', this, task
+      @emit 'complete', this, null, task
     else
-      console.error message.toString()
-      @emit 'complete', this, task
+      # Must be an error
+      @emit 'complete', this, message, task
 
   add: (task) ->
     @queue.push task
@@ -63,9 +63,12 @@ class Queue extends EventEmitter
     process.removeListener 'exit', @destroy
     bucket.destroy() for bucket in @buckets
 
-  complete: (bucket, task) =>
+  complete: (bucket, err, task) =>
     {path} = task
-    console.log "[#{bucket.id}] Processed: #{path}"
+    if err
+      console.log "[#{bucket.id}] Failed: #{path}"
+    else
+      console.log "[#{bucket.id}] Processed: #{path}"
     i = @inProgress.indexOf(path)
     if i is -1
       throw new Error "This shouldn't be able to happen"
@@ -101,7 +104,6 @@ class Queue extends EventEmitter
   remove: (path) =>
     i = @queue.indexOf(path)
     if i isnt -1
-      console.log "Unqueueing #{path}"
       @queue.splice(i, 1)
 
   processNext: ->

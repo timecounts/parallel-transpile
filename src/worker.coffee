@@ -6,6 +6,15 @@ loaders = {}
 source = null
 output = null
 
+send = (message) ->
+  if message instanceof Error
+    console.error message.stack
+    message =
+      error: true
+      message: message.toString()
+      stack: message.stack
+  process.send message
+
 init = (options) ->
   source = options.source.replace(/\/*$/, "/")
   output = options.output.replace(/\/+$/, "")
@@ -34,8 +43,8 @@ process.on 'message', (m) ->
         path: path
         query: ""
         module: loaderModule
-    catch e
-      return process.send e
+    catch err
+      return send err
   src = fs.readFileSync(path, 'utf8')
   sourceMap = null
   remainingLoaderModules = loaderModules[..]
@@ -45,7 +54,7 @@ process.on 'message', (m) ->
     mkdirp.sync(Path.dirname(outPath))
     fs.writeFileSync(outPath, src)
     fs.writeFileSync(mapPath, sourceMap) if sourceMap
-    process.send 'complete'
+    send 'complete'
 
   applyNext = ->
     next = remainingLoaderModules.pop()
@@ -64,14 +73,18 @@ process.on 'message', (m) ->
       callback: (err, js, map) ->
         asyncCallback = true
         if err
-          process.send err
+          send err
           return
         src = js
         sourceMap = map
         applyNext()
-    out = next.call(context, src)
-    if !asyncCallback
-      src = out
-      applyNext()
+    try
+      out = next.call(context, src)
+      if !asyncCallback
+        src = out
+        applyNext()
+    catch err
+      send err
+      return
 
   applyNext()
