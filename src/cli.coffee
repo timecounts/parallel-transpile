@@ -27,7 +27,9 @@ usage = ->
 
       To compile a CJSX file to JavaScript:
 
-        -t ".cjsx:cjsx-loader,coffee-loader:.js"
+        -t ".cjsx:coffee-loader,cjsx-loader:.js"
+
+      Loaders operate from right to left, like in webpack.
     """
 
 minimistOptions =

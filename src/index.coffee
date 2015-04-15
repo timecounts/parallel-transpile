@@ -27,12 +27,16 @@ class Bucket extends EventEmitter
     @queue = []
     @child = cluster.fork()
     @id = @child.id
+    @child.send {init: @options}
     @child.on 'message', @receive
 
   receive: (message) =>
     if message is 'complete'
       task = @queue.shift()
       @perform()
+      @emit 'complete', this, task
+    else
+      console.error message.toString()
       @emit 'complete', this, task
 
   add: (task) ->
@@ -55,7 +59,7 @@ class Queue extends EventEmitter
     @inProgress = []
     @buckets = []
     for i in [0..os.cpus().length]
-      bucket = new Bucket
+      bucket = new Bucket @options
       bucket.on 'complete', @complete
       @buckets.push bucket
     process.on 'exit', @destroy
@@ -140,15 +144,17 @@ module.exports = (options, callback) ->
       loaders: loaders.split(",").filter (a) -> a.length > 0
       outExt: outExt
 
+
   console.dir options.rules
 
 
   if options.watch
     watchQueue = new Queue(options)
     watcher = chokidar.watch options.source
-    watcher.on 'add', watchQueue.add
-    watcher.on 'change', watchQueue.add
-    watcher.on 'unlink', watchQueue.remove
+    watcher.on 'ready', ->
+      watcher.on 'add', watchQueue.add
+      watcher.on 'change', watchQueue.add
+      watcher.on 'unlink', watchQueue.remove
 
   queue = new Queue(options, true)
   recurse = (path) ->

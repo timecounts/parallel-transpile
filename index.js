@@ -46,6 +46,9 @@ Bucket = (function(superClass) {
     this.queue = [];
     this.child = cluster.fork();
     this.id = this.child.id;
+    this.child.send({
+      init: this.options
+    });
     this.child.on('message', this.receive);
   }
 
@@ -54,6 +57,9 @@ Bucket = (function(superClass) {
     if (message === 'complete') {
       task = this.queue.shift();
       this.perform();
+      return this.emit('complete', this, task);
+    } else {
+      console.error(message.toString());
       return this.emit('complete', this, task);
     }
   };
@@ -98,7 +104,7 @@ Queue = (function(superClass) {
     this.inProgress = [];
     this.buckets = [];
     for (i = j = 0, ref = os.cpus().length; 0 <= ref ? j <= ref : j >= ref; i = 0 <= ref ? ++j : --j) {
-      bucket = new Bucket;
+      bucket = new Bucket(this.options);
       bucket.on('complete', this.complete);
       this.buckets.push(bucket);
     }
@@ -256,9 +262,11 @@ module.exports = function(options, callback) {
   if (options.watch) {
     watchQueue = new Queue(options);
     watcher = chokidar.watch(options.source);
-    watcher.on('add', watchQueue.add);
-    watcher.on('change', watchQueue.add);
-    watcher.on('unlink', watchQueue.remove);
+    watcher.on('ready', function() {
+      watcher.on('add', watchQueue.add);
+      watcher.on('change', watchQueue.add);
+      return watcher.on('unlink', watchQueue.remove);
+    });
   }
   queue = new Queue(options, true);
   recurse = function(path) {
