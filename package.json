@@ -40,5 +40,8 @@
   },
   "devDependencies": {
     "coffee-script": "^1.9.1"
+  },
+  "peerDependencies": {
+    "chokidar": "^1.0.1"
   }
 }

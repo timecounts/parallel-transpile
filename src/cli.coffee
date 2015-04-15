@@ -18,11 +18,12 @@ usage = ->
     Types
 
       Each type takes an input filter (file extension), a list of loaders, and
-      an output extension.
+      an output extension. To copy a file verbatim, only the input filter is
+      required.
 
       For example, to copy all JSON files verbatim:
 
-        -t ".json::.json"
+        -t ".json"
 
       To compile a CJSX file to JavaScript:
 
