@@ -10,6 +10,7 @@ usage = ->
     Usage: parallel-transpile [options] -o outputDirectory inputDirectory
 
       -h, --help          display this help message
+      -v, --version       output version number
       -w, --watch         watch input directories for changes
       -o, --output        the output directory
       -t, --type          add a type to be converted, see below
@@ -35,6 +36,7 @@ usage = ->
 minimistOptions =
   alias:
     "h": "help"
+    "v": "version"
     "o": "output"
     "w": "watch"
     "t": "type"
@@ -67,6 +69,10 @@ for k, v of argv when k isnt "_"
 
 if argv.help
   usage()
+  process.exit(0)
+
+if argv.version
+  console.log require('./package.json').version
   process.exit(0)
 
 if argv._.length < 1
