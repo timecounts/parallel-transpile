@@ -12,6 +12,7 @@ if !cluster.isMaster
 EventEmitter = require 'events'
 chokidar = require 'chokidar'
 os = require 'os'
+child_process = require 'child_process'
 
 error = (code, message) ->
   err = new Error message
@@ -81,7 +82,7 @@ class Queue extends EventEmitter
 
   run: ->
     @buckets = []
-    for i in [0..os.cpus().length]
+    for i in [0...@options.parallel]
       bucket = new Bucket @options
       bucket.on 'complete', @complete
       @buckets.push bucket
@@ -149,6 +150,12 @@ module.exports = (options, callback) ->
       loaders: loaders.split(",").filter (a) -> a.length > 0
       outExt: outExt
 
+  options.parallel = parseInt(options.parallel, 10)
+  if !isFinite(options.parallel) || options.parallel < 0
+    delete options.parallel
+    console.error "Did not understand parallel option value, discarding it."
+
+  options.parallel ||= os.cpus().length
 
   if options.watch
     watchQueue = new Queue(options)
