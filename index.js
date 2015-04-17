@@ -180,23 +180,25 @@ Queue = (function(superClass) {
   };
 
   Queue.prototype.processNext = function() {
-    var availableBucket, availablePath, bucket, i, j, k, len, len1, path, ref, ref1;
+    var availablePath, bestBucket, bestBucketScore, bucket, i, j, k, len, len1, path, ref, ref1, score;
     if (this.paused) {
       return;
     }
     if (!this.queue.length) {
       return;
     }
+    bestBucket = null;
+    bestBucketScore = 0;
     ref = this.buckets;
     for (j = 0, len = ref.length; j < len; j++) {
       bucket = ref[j];
-      if (!(bucket.capacity > bucket.queue.length)) {
-        continue;
+      if ((score = bucket.capacity - bucket.queue.length) > 0) {
+        if (!bestBucket || score > bestBucketScore) {
+          bestBucket = bucket;
+        }
       }
-      availableBucket = bucket;
-      break;
     }
-    if (!availableBucket) {
+    if (!bestBucket) {
       return;
     }
     ref1 = this.queue;
@@ -213,7 +215,7 @@ Queue = (function(superClass) {
       return;
     }
     this.inProgress.push(availablePath);
-    availableBucket.add({
+    bestBucket.add({
       path: availablePath,
       rule: this.rule(availablePath)
     });

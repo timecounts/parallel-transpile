@@ -109,17 +109,19 @@ class Queue extends EventEmitter
   processNext: ->
     return if @paused
     return unless @queue.length
-    for bucket in @buckets when bucket.capacity > bucket.queue.length
-      availableBucket = bucket
-      break
-    return unless availableBucket
+    bestBucket = null
+    bestBucketScore = 0
+    for bucket in @buckets when (score = bucket.capacity - bucket.queue.length) > 0
+      if !bestBucket || score > bestBucketScore
+        bestBucket = bucket
+    return unless bestBucket
     for path, i in @queue when @inProgress.indexOf(path) is -1
       availablePath = path
       @queue.splice(i, 1)
       break
     return unless availablePath
     @inProgress.push availablePath
-    availableBucket.add({path: availablePath, rule: @rule(availablePath)})
+    bestBucket.add({path: availablePath, rule: @rule(availablePath)})
     @processNext()
 
 module.exports = (options, callback) ->
