@@ -76,7 +76,7 @@ process.on('message', function(m) {
   remainingLoaderModules = webpackLoaders.slice(0);
   i = remainingLoaderModules.length;
   finished = function() {
-    var sourceMapString;
+    var nextMap, sourceMapString;
     mkdirp.sync(Path.dirname(outPath));
     if (sourceMaps.length && outPath.match(/\.js$/)) {
       sourceMaps.map(function(sourceMap) {
@@ -87,7 +87,10 @@ process.on('message', function(m) {
       if (sourceMaps.length === 1) {
         sourceMapString = JSON.stringify(sourceMaps[0]);
       } else {
-        sourceMapString = ApplySourceMap(sourceMaps[0], sourceMaps[1]);
+        sourceMapString = JSON.stringify(sourceMaps.shift());
+        while (nextMap = sourceMaps.shift()) {
+          sourceMapString = ApplySourceMap(sourceMapString, nextMap);
+        }
       }
       src = src + "\n//# sourceMappingURL=" + (Path.basename(mapPath));
     }

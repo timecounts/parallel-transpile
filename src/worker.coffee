@@ -62,7 +62,9 @@ process.on 'message', (m) ->
       if sourceMaps.length is 1
         sourceMapString = JSON.stringify sourceMaps[0]
       else
-        sourceMapString = ApplySourceMap(sourceMaps[0], sourceMaps[1])
+        sourceMapString = JSON.stringify(sourceMaps.shift())
+        while nextMap = sourceMaps.shift()
+          sourceMapString = ApplySourceMap(sourceMapString, nextMap)
 
       src = "#{src}\n//# sourceMappingURL=#{Path.basename(mapPath)}"
     fs.writeFileSync(outPath, src)
