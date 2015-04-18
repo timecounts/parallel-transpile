@@ -1,6 +1,7 @@
 fs = require 'fs'
 Path = require 'path'
 mkdirp = require 'mkdirp'
+ApplySourceMap = require 'apply-source-map'
 
 loaders = {}
 source = null
@@ -54,14 +55,18 @@ process.on 'message', (m) ->
   finished = ->
     mkdirp.sync(Path.dirname(outPath))
     if sourceMaps.length and outPath.match(/\.js$/)
-      # XXX: combine them
-      sourceMap = sourceMaps[sourceMaps.length - 1]
+      sourceMaps.map (sourceMap) ->
+        sourceMap.file = Path.basename(outPath)
+        sourceMap.sources = [Path.basename(relativePath)]
+        delete sourceMap.sourcesContent
+      if sourceMaps.length is 1
+        sourceMapString = JSON.stringify sourceMaps[0]
+      else
+        sourceMapString = ApplySourceMap(sourceMaps[0], sourceMaps[1])
 
-      sourceMap.file = Path.basename(outPath)
-      sourceMap.sources = [Path.basename(relativePath)]
       src = "#{src}\n//# sourceMappingURL=#{Path.basename(mapPath)}"
     fs.writeFileSync(outPath, src)
-    fs.writeFileSync(mapPath, JSON.stringify(sourceMap)) if sourceMap
+    fs.writeFileSync(mapPath, sourceMapString) if sourceMapString
     send 'complete'
 
   applyNext = ->
