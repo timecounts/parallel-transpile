@@ -38,7 +38,7 @@ swapExtension = function(path, a, b) {
 };
 
 process.on('message', function(m) {
-  var _, applyNext, err, finished, i, inExt, j, len, loader, loaderModule, mapPath, moduleName, outExt, outPath, path, query, ref, ref1, relativePath, remainingLoaderModules, sourceMap, src, webpackLoaders;
+  var _, applyNext, baseName, err, finished, i, inExt, j, len, loader, loaderModule, mapPath, moduleName, outExt, outPath, path, query, ref, ref1, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
   if (m.init) {
     return init(m.init);
   }
@@ -50,14 +50,17 @@ process.on('message', function(m) {
   outPath = output + "/" + (swapExtension(relativePath, inExt, outExt));
   mapPath = output + "/" + (swapExtension(relativePath, inExt, ".map"));
   webpackLoaders = [];
+  baseName = Path.basename(relativePath);
+  requestString = baseName;
   for (j = 0, len = loaders.length; j < len; j++) {
     loader = loaders[j];
     try {
+      requestString = loader + "!" + requestString;
       ref1 = loader.match(/^([^?]+)(\?.*)?$/), _ = ref1[0], moduleName = ref1[1], query = ref1[2];
       loaderModule = require(moduleName);
       webpackLoaders.push({
-        request: "",
-        path: path,
+        request: requestString,
+        path: baseName,
         query: query,
         module: loaderModule
       });
@@ -67,14 +70,21 @@ process.on('message', function(m) {
     }
   }
   src = fs.readFileSync(path, 'utf8');
-  sourceMap = null;
+  sourceMaps = [];
   remainingLoaderModules = webpackLoaders.slice(0);
   i = remainingLoaderModules.length;
   finished = function() {
+    var sourceMap;
     mkdirp.sync(Path.dirname(outPath));
+    if (sourceMaps.length && outPath.match(/\.js$/)) {
+      sourceMap = sourceMaps[sourceMaps.length - 1];
+      sourceMap.file = Path.basename(outPath);
+      sourceMap.sources = [Path.basename(relativePath)];
+      src = src + "\n//# sourceMappingURL=" + (Path.basename(mapPath));
+    }
     fs.writeFileSync(outPath, src);
     if (sourceMap) {
-      fs.writeFileSync(mapPath, sourceMap);
+      fs.writeFileSync(mapPath, JSON.stringify(sourceMap));
     }
     return send('complete');
   };
@@ -88,10 +98,13 @@ process.on('message', function(m) {
     asyncCallback = false;
     context = {
       version: 1,
-      path: next.path,
       request: next.request,
+      path: next.path,
+      resource: baseName,
+      resourcePath: baseName,
+      resourceQuery: "",
       query: next.query,
-      sourceMap: sourceMap,
+      sourceMap: true,
       loaderIndex: i,
       loaders: webpackLoaders,
       async: function() {
@@ -104,7 +117,9 @@ process.on('message', function(m) {
           return;
         }
         src = js;
-        sourceMap = map;
+        if (map) {
+          sourceMaps.push(map);
+        }
         return applyNext();
       }
     };

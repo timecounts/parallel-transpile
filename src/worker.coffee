@@ -32,26 +32,36 @@ process.on 'message', (m) ->
   outPath = "#{output}/#{swapExtension(relativePath, inExt, outExt)}"
   mapPath = "#{output}/#{swapExtension(relativePath, inExt, ".map")}"
   webpackLoaders = []
+  baseName = Path.basename relativePath
+  requestString = baseName
   for loader in loaders
     try
+      requestString = "#{loader}!#{requestString}"
       [_, moduleName, query] = loader.match(/^([^?]+)(\?.*)?$/)
       loaderModule = require(moduleName)
       webpackLoaders.push
-        request: ""
-        path: path
+        request: requestString
+        path: baseName
         query: query
         module: loaderModule
     catch err
       return send err
   src = fs.readFileSync(path, 'utf8')
-  sourceMap = null
+  sourceMaps = []
   remainingLoaderModules = webpackLoaders[..]
   i = remainingLoaderModules.length
 
   finished = ->
     mkdirp.sync(Path.dirname(outPath))
+    if sourceMaps.length and outPath.match(/\.js$/)
+      # XXX: combine them
+      sourceMap = sourceMaps[sourceMaps.length - 1]
+
+      sourceMap.file = Path.basename(outPath)
+      sourceMap.sources = [Path.basename(relativePath)]
+      src = "#{src}\n//# sourceMappingURL=#{Path.basename(mapPath)}"
     fs.writeFileSync(outPath, src)
-    fs.writeFileSync(mapPath, sourceMap) if sourceMap
+    fs.writeFileSync(mapPath, JSON.stringify(sourceMap)) if sourceMap
     send 'complete'
 
   applyNext = ->
@@ -61,10 +71,13 @@ process.on 'message', (m) ->
     asyncCallback = false
     context =
       version: 1
-      path: next.path
       request: next.request
+      path: next.path
+      resource: baseName
+      resourcePath: baseName
+      resourceQuery: ""
       query: next.query
-      sourceMap: sourceMap
+      sourceMap: true
       loaderIndex: i
       loaders: webpackLoaders
       async: ->
@@ -75,7 +88,8 @@ process.on 'message', (m) ->
           send err
           return
         src = js
-        sourceMap = map
+        if map
+          sourceMaps.push map
         applyNext()
     try
       out = next.module.call(context, src)
