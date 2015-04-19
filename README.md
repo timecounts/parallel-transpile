@@ -16,8 +16,11 @@ Usage
 Usage: parallel-transpile [options] -o outputDirectory inputDirectory
 
   -h, --help          display this help message
+  -v, --version       output version number
   -w, --watch         watch input directories for changes
   -o, --output        the output directory
+  -p, --parallel      how many instances to run in parallel
+                        (defaults to number of CPUs)
   -t, --type          add a type to be converted, see below
                         (can be called multiple times)
 
