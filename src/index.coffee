@@ -150,10 +150,11 @@ module.exports = (options, callback) ->
       loaders: loaders.split(",").filter (a) -> a.length > 0
       outExt: outExt
 
-  options.parallel = parseInt(options.parallel, 10)
-  if !isFinite(options.parallel) || options.parallel < 0
-    delete options.parallel
-    console.error "Did not understand parallel option value, discarding it."
+  if options.parallel?
+    options.parallel = parseInt(options.parallel, 10)
+    if !isFinite(options.parallel) or options.parallel < 0
+      delete options.parallel
+      console.error "Did not understand parallel option value, discarding it."
 
   options.parallel ||= os.cpus().length
 

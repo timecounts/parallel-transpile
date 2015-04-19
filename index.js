@@ -267,10 +267,12 @@ module.exports = function(options, callback) {
       outExt: outExt
     });
   }
-  options.parallel = parseInt(options.parallel, 10);
-  if (!isFinite(options.parallel) || options.parallel < 0) {
-    delete options.parallel;
-    console.error("Did not understand parallel option value, discarding it.");
+  if (options.parallel != null) {
+    options.parallel = parseInt(options.parallel, 10);
+    if (!isFinite(options.parallel) || options.parallel < 0) {
+      delete options.parallel;
+      console.error("Did not understand parallel option value, discarding it.");
+    }
   }
   options.parallel || (options.parallel = os.cpus().length);
   if (options.watch) {
