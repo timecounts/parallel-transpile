@@ -9,6 +9,10 @@ Installation
 
 `npm install -g parallel-transpile`
 
+Also install any webpack loaders you require, e.g.
+
+`npm install -g cjsx-loader coffee-loader jsx-loader json-loader`
+
 Usage
 -----
 
