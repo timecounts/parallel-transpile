@@ -17,6 +17,7 @@ usage = ->
                             (defaults to number of CPUs)
       -t, --type          add a type to be converted, see below
                             (can be called multiple times)
+      -n, --newer         only build files newer than destination files
 
     Types
 
@@ -43,6 +44,7 @@ minimistOptions =
     "p": "parallel"
     "w": "watch"
     "t": "type"
+    "n": "newer"
 
   string: [
     "output"
@@ -52,6 +54,7 @@ minimistOptions =
 
   boolean: [
     "watch"
+    "newer"
   ]
 
   multiple: [

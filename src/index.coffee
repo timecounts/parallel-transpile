@@ -1,5 +1,6 @@
 fs = require 'fs'
 cluster = require 'cluster'
+utils = require './utils'
 
 cluster.setupMaster
   exec: "#{__dirname}/worker"
@@ -89,6 +90,7 @@ class Queue extends EventEmitter
     process.on 'exit', @destroy
     delete @paused
     @processNext()
+    @emit 'empty' unless @inProgress.length > 0
 
   rule: (path) ->
     for rule in @options.rules
@@ -175,13 +177,27 @@ module.exports = (options, callback) ->
       if stat.isDirectory()
         recurse(filePath)
       else if stat.isFile()
-        queue.add(filePath)
+        shouldAdd = true
+        if options.newer
+          rule = null
+          for aRule in options.rules when endsWith(filePath, aRule.inExt)
+            rule = aRule
+            break
+          if rule
+            {inExt, outExt} = rule
+            relativePath = filePath.substr(options.source.length)
+            outPath = "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
+            try
+              stat2 = fs.statSync(outPath)
+            if stat2 and stat2.mtime > stat.mtime
+              shouldAdd = false
+        queue.add(filePath) if shouldAdd
     return
 
   recurse options.source
 
-  queue.run()
   queue.on 'empty', ->
     console.log "INITIAL BUILD COMPLETE"
     options.initialBuildComplete?()
     watchQueue?.run()
+  queue.run()

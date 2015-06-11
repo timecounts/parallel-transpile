@@ -27,6 +27,7 @@ Usage: parallel-transpile [options] -o outputDirectory inputDirectory
                         (defaults to number of CPUs)
   -t, --type          add a type to be converted, see below
                         (can be called multiple times)
+  -n, --newer         only build files newer than destination files
 
 Types
 

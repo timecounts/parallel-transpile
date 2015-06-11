@@ -2,6 +2,7 @@ fs = require 'fs'
 Path = require 'path'
 mkdirp = require 'mkdirp'
 ApplySourceMap = require 'apply-source-map'
+utils = require './utils'
 
 loaders = {}
 source = null
@@ -20,18 +21,13 @@ init = (options) ->
   source = options.source.replace(/\/*$/, "/")
   output = options.output.replace(/\/+$/, "")
 
-swapExtension = (path, a, b) ->
-  if path.substr(path.length - a.length) is a
-    return path.substr(0, path.length - a.length) + b
-  return path
-
 process.on 'message', (m) ->
   return init(m.init) if m.init
   throw new Error "Not initialised" unless source
   {path, rule: {inExt, loaders, outExt}} = m
   relativePath = path.substr(source.length)
-  outPath = "#{output}/#{swapExtension(relativePath, inExt, outExt)}"
-  mapPath = "#{output}/#{swapExtension(relativePath, inExt, ".map")}"
+  outPath = "#{output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
+  mapPath = "#{output}/#{utils.swapExtension(relativePath, inExt, ".map")}"
   webpackLoaders = []
   baseName = Path.basename relativePath
   requestString = baseName
