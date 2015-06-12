@@ -66,7 +66,7 @@ process.on('message', function(m) {
       return send(err);
     }
   }
-  src = fs.readFileSync(path, 'utf8');
+  src = fs.readFileSync(path);
   sourceMaps = [];
   remainingLoaderModules = webpackLoaders.slice(0);
   i = remainingLoaderModules.length;
@@ -87,7 +87,7 @@ process.on('message', function(m) {
           sourceMapString = ApplySourceMap(sourceMapString, nextMap);
         }
       }
-      src = src + "\n//# sourceMappingURL=" + (Path.basename(mapPath));
+      src = (src.toString('utf8')) + "\n//# sourceMappingURL=" + (Path.basename(mapPath));
     }
     fs.writeFileSync(outPath, src);
     if (sourceMapString) {
@@ -96,7 +96,7 @@ process.on('message', function(m) {
     return send('complete');
   };
   applyNext = function() {
-    var asyncCallback, context, next, out;
+    var asyncCallback, context, input, next, out;
     next = remainingLoaderModules.pop();
     i--;
     if (!next) {
@@ -117,13 +117,17 @@ process.on('message', function(m) {
       async: function() {
         return asyncCallback = true;
       },
-      callback: function(err, js, map) {
+      callback: function(err, out, map) {
         asyncCallback = true;
         if (err) {
           send(err);
           return;
         }
-        src = js;
+        if (out instanceof Buffer) {
+          src = out;
+        } else {
+          src = new Buffer(out);
+        }
         if (map) {
           sourceMaps.push(map);
         }
@@ -131,9 +135,18 @@ process.on('message', function(m) {
       }
     };
     try {
-      out = next.module.call(context, src);
+      if (next.module.raw) {
+        input = src;
+      } else {
+        input = src.toString('utf8');
+      }
+      out = next.module.call(context, input);
       if (!asyncCallback) {
-        src = out;
+        if (out instanceof Buffer) {
+          src = out;
+        } else {
+          src = new Buffer(out);
+        }
         return applyNext();
       }
     } catch (_error) {

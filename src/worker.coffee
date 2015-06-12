@@ -43,13 +43,14 @@ process.on 'message', (m) ->
         module: loaderModule
     catch err
       return send err
-  src = fs.readFileSync(path, 'utf8')
+  src = fs.readFileSync(path)
   sourceMaps = []
   remainingLoaderModules = webpackLoaders[..]
   i = remainingLoaderModules.length
 
   finished = ->
     mkdirp.sync(Path.dirname(outPath))
+    # XXX: support CSS/etc source maps
     if sourceMaps.length and outPath.match(/\.js$/)
       sourceMaps.map (sourceMap) ->
         sourceMap.file = Path.basename(outPath)
@@ -62,7 +63,11 @@ process.on 'message', (m) ->
         while nextMap = sourceMaps.shift()
           sourceMapString = ApplySourceMap(sourceMapString, nextMap)
 
-      src = "#{src}\n//# sourceMappingURL=#{Path.basename(mapPath)}"
+      src =
+        """
+        #{src.toString('utf8')}
+        //# sourceMappingURL=#{Path.basename(mapPath)}
+        """
     fs.writeFileSync(outPath, src)
     fs.writeFileSync(mapPath, sourceMapString) if sourceMapString
     send 'complete'
@@ -85,19 +90,29 @@ process.on 'message', (m) ->
       loaders: webpackLoaders
       async: ->
         asyncCallback = true
-      callback: (err, js, map) ->
+      callback: (err, out, map) ->
         asyncCallback = true
         if err
           send err
           return
-        src = js
+        if out instanceof Buffer
+          src = out
+        else
+          src = new Buffer(out)
         if map
           sourceMaps.push map
         applyNext()
     try
-      out = next.module.call(context, src)
+      if next.module.raw
+        input = src
+      else
+        input = src.toString('utf8')
+      out = next.module.call(context, input)
       if !asyncCallback
-        src = out
+        if out instanceof Buffer
+          src = out
+        else
+          src = new Buffer(out)
         applyNext()
     catch err
       send err
