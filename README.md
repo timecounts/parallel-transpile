@@ -73,11 +73,11 @@ Usage as a module
 You can also use parallel-transpile as a module, which can be useful
 e.g. in grunt. For a simple parallel build you might do something like:
 
-```
+```js
 var parallelTranspile = require('parallel-transpile');
 
 grunt.registerTask("parallel-transpile", function() {
-  var done = @async();
+  var done = this.async();
   var options = {
     output: "build",
     source: "src",
@@ -101,11 +101,11 @@ You can have your grunt task wait for the initial build to complete
 before moving on to the next grunt task but continue watching for
 changes in the background, like this:
 
-```
+```js
 var parallelTranspile = require('parallel-transpile');
 
 grunt.registerTask("parallel-transpile:watch", function() {
-  var done = @async();
+  var done = this.async();
   var options = {
     output: "build",
     source: "src",
