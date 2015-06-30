@@ -54,7 +54,11 @@ process.on 'message', (m) ->
     if sourceMaps.length and outPath.match(/\.js$/)
       sourceMaps.map (sourceMap) ->
         sourceMap.file = Path.basename(outPath)
-        sourceMap.sources = [Path.basename(relativePath)]
+        absoluteOutPath = Path.resolve(outPath)
+        absolutePath = Path.resolve(path)
+        sourceMap.sources = [
+          Path.relative(Path.dirname(absoluteOutPath), absolutePath)
+        ]
         delete sourceMap.sourcesContent
       if sourceMaps.length is 1
         sourceMapString = JSON.stringify sourceMaps[0]

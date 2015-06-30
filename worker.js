@@ -75,8 +75,11 @@ process.on('message', function(m) {
     mkdirp.sync(Path.dirname(outPath));
     if (sourceMaps.length && outPath.match(/\.js$/)) {
       sourceMaps.map(function(sourceMap) {
+        var absoluteOutPath, absolutePath;
         sourceMap.file = Path.basename(outPath);
-        sourceMap.sources = [Path.basename(relativePath)];
+        absoluteOutPath = Path.resolve(outPath);
+        absolutePath = Path.resolve(path);
+        sourceMap.sources = [Path.relative(Path.dirname(absoluteOutPath), absolutePath)];
         return delete sourceMap.sourcesContent;
       });
       if (sourceMaps.length === 1) {
