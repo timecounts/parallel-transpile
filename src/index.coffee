@@ -68,6 +68,7 @@ class Queue extends EventEmitter
   complete: (bucket, err, task) =>
     {path} = task
     if err
+      @options.onError?(err)
       console.log "[#{bucket.id}] Failed: #{path}"
     else
       console.log "[#{bucket.id}] Processed: #{path}"
