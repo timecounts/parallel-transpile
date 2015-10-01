@@ -88,3 +88,5 @@ main(argv, function(err) {
     process.exit((ref = err.code) != null ? ref : 10);
   }
 });
+
+//# sourceMappingURL=cli.js.map

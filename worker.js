@@ -99,15 +99,22 @@ process.on('message', function(m) {
     return send('complete');
   };
   applyNext = function() {
-    var asyncCallback, context, error1, input, next, out;
+    var asyncCallback, cacheable, context, error1, input, next, out;
     next = remainingLoaderModules.pop();
     i--;
     if (!next) {
       return finished();
     }
     asyncCallback = false;
+    cacheable = false;
     context = {
       options: {},
+      cacheable: function(_cacheable) {
+        if (_cacheable == null) {
+          _cacheable = true;
+        }
+        return cacheable = _cacheable;
+      },
       version: 1,
       request: next.request,
       path: next.path,
@@ -160,3 +167,5 @@ process.on('message', function(m) {
   };
   return applyNext();
 });
+
+//# sourceMappingURL=worker.js.map

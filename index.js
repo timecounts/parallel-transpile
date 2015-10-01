@@ -346,3 +346,5 @@ module.exports = function(options, callback) {
   });
   return queue.run();
 };
+
+//# sourceMappingURL=index.js.map

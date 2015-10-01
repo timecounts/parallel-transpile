@@ -81,8 +81,10 @@ process.on 'message', (m) ->
     i--
     return finished() unless next
     asyncCallback = false
+    cacheable = false
     context =
       options: {} #TODO: https://github.com/webpack/webpack/blob/eba472773387376ed027146aa0f0c524ffb4c314/lib/WebpackOptionsDefaulter.js
+      cacheable: (_cacheable = true) -> cacheable = _cacheable
       version: 1
       request: next.request
       path: next.path
