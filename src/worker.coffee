@@ -97,6 +97,7 @@ process.on 'message', (m) ->
       loaders: webpackLoaders
       async: ->
         asyncCallback = true
+        context.callback
       callback: (err, out, map) ->
         asyncCallback = true
         if err

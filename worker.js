@@ -126,7 +126,8 @@ process.on('message', function(m) {
       loaderIndex: i,
       loaders: webpackLoaders,
       async: function() {
-        return asyncCallback = true;
+        asyncCallback = true;
+        return context.callback;
       },
       callback: function(err, out, map) {
         asyncCallback = true;
