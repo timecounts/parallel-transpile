@@ -107,6 +107,7 @@ process.on('message', function(m) {
     }
     asyncCallback = false;
     context = {
+      options: {},
       version: 1,
       request: next.request,
       path: next.path,
