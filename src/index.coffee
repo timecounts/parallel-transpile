@@ -159,7 +159,14 @@ module.exports = (options, callback) ->
       delete options.parallel
       console.error "Did not understand parallel option value, discarding it."
 
+  if options.maxParallel?
+    options.maxParallel = parseInt(options.maxParallel, 10)
+    if !isFinite(options.maxParallel) or options.maxParallel < 0
+      delete options.maxParallel
+      console.error "Did not understand maxParallel option value, discarding it."
+
   options.parallel ||= os.cpus().length
+  options.parallel = Math.min(options.parallel, options.maxParallel ? 16)
 
   if options.watch
     watchQueue = new Queue(options)

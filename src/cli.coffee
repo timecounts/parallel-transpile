@@ -15,6 +15,8 @@ usage = ->
       -o, --output        the output directory
       -p, --parallel      how many instances to run in parallel
                             (defaults to number of CPUs)
+      -m, --maxParallel   maximum number of instances to run in parallel
+                            (defaults to 16)
       -t, --type          add a type to be converted, see below
                             (can be called multiple times)
       -n, --newer         only build files newer than destination files
@@ -42,6 +44,7 @@ minimistOptions =
     "v": "version"
     "o": "output"
     "p": "parallel"
+    "m": "maxParallel"
     "w": "watch"
     "t": "type"
     "n": "newer"
@@ -49,6 +52,7 @@ minimistOptions =
   string: [
     "output"
     "parallel"
+    "maxParallel"
     "type"
   ]
 

@@ -237,7 +237,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var inExt, j, len, loaders, matches, outExt, queue, recurse, ref, ref1, ref2, type, watchQueue, watcher;
+  var inExt, j, len, loaders, matches, outExt, queue, recurse, ref, ref1, ref2, ref3, type, watchQueue, watcher;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -282,7 +282,15 @@ module.exports = function(options, callback) {
       console.error("Did not understand parallel option value, discarding it.");
     }
   }
+  if (options.maxParallel != null) {
+    options.maxParallel = parseInt(options.maxParallel, 10);
+    if (!isFinite(options.maxParallel) || options.maxParallel < 0) {
+      delete options.maxParallel;
+      console.error("Did not understand maxParallel option value, discarding it.");
+    }
+  }
   options.parallel || (options.parallel = os.cpus().length);
+  options.parallel = Math.min(options.parallel, (ref3 = options.maxParallel) != null ? ref3 : 16);
   if (options.watch) {
     watchQueue = new Queue(options);
     watcher = chokidar.watch(options.source);
@@ -294,7 +302,7 @@ module.exports = function(options, callback) {
   }
   queue = new Queue(options, true);
   recurse = function(path) {
-    var aRule, file, filePath, files, k, l, len1, len2, outPath, ref3, relativePath, rule, shouldAdd, stat, stat2;
+    var aRule, file, filePath, files, k, l, len1, len2, outPath, ref4, relativePath, rule, shouldAdd, stat, stat2;
     files = fs.readdirSync(path);
     for (k = 0, len1 = files.length; k < len1; k++) {
       file = files[k];
@@ -309,9 +317,9 @@ module.exports = function(options, callback) {
         shouldAdd = true;
         if (options.newer) {
           rule = null;
-          ref3 = options.rules;
-          for (l = 0, len2 = ref3.length; l < len2; l++) {
-            aRule = ref3[l];
+          ref4 = options.rules;
+          for (l = 0, len2 = ref4.length; l < len2; l++) {
+            aRule = ref4[l];
             if (!(endsWith(filePath, aRule.inExt))) {
               continue;
             }
