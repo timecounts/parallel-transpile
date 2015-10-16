@@ -64,6 +64,7 @@ class Queue extends EventEmitter
     return unless @buckets
     process.removeListener 'exit', @destroy
     bucket.destroy() for bucket in @buckets
+    @buckets = null
 
   complete: (bucket, err, task) =>
     {path} = task
@@ -176,6 +177,12 @@ module.exports = (options, callback) ->
       watcher.on 'change', watchQueue.add
       watcher.on 'unlink', watchQueue.remove
 
+  oldOnError = options.onError
+  errorOccurred = false
+  options.onError = ->
+    errorOccurred = true
+    oldOnError?.apply(this, arguments)
+
   queue = new Queue(options, true)
   recurse = (path) ->
     files = fs.readdirSync(path)
@@ -206,6 +213,14 @@ module.exports = (options, callback) ->
 
   queue.on 'empty', ->
     console.log "INITIAL BUILD COMPLETE"
-    options.initialBuildComplete?()
-    watchQueue?.run()
+    status = null
+    if errorOccurred
+      status = new Error "An error occurred"
+    options.initialBuildComplete?(status)
+    if watchQueue?
+      watchQueue.run()
+    else
+      # Finished
+      queue.destroy()
+      callback(status)
   queue.run()

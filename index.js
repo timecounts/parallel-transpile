@@ -107,18 +107,17 @@ Queue = (function(superClass) {
   }
 
   Queue.prototype.destroy = function() {
-    var bucket, j, len, ref, results;
+    var bucket, j, len, ref;
     if (!this.buckets) {
       return;
     }
     process.removeListener('exit', this.destroy);
     ref = this.buckets;
-    results = [];
     for (j = 0, len = ref.length; j < len; j++) {
       bucket = ref[j];
-      results.push(bucket.destroy());
+      bucket.destroy();
     }
-    return results;
+    return this.buckets = null;
   };
 
   Queue.prototype.complete = function(bucket, err, task) {
@@ -237,7 +236,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var inExt, j, len, loaders, matches, outExt, queue, recurse, ref, ref1, ref2, ref3, type, watchQueue, watcher;
+  var errorOccurred, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, type, watchQueue, watcher;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -300,6 +299,12 @@ module.exports = function(options, callback) {
       return watcher.on('unlink', watchQueue.remove);
     });
   }
+  oldOnError = options.onError;
+  errorOccurred = false;
+  options.onError = function() {
+    errorOccurred = true;
+    return oldOnError != null ? oldOnError.apply(this, arguments) : void 0;
+  };
   queue = new Queue(options, true);
   recurse = function(path) {
     var aRule, file, filePath, files, k, l, len1, len2, outPath, ref4, relativePath, rule, shouldAdd, stat, stat2;
@@ -346,11 +351,21 @@ module.exports = function(options, callback) {
   };
   recurse(options.source);
   queue.on('empty', function() {
+    var status;
     console.log("INITIAL BUILD COMPLETE");
-    if (typeof options.initialBuildComplete === "function") {
-      options.initialBuildComplete();
+    status = null;
+    if (errorOccurred) {
+      status = new Error("An error occurred");
     }
-    return watchQueue != null ? watchQueue.run() : void 0;
+    if (typeof options.initialBuildComplete === "function") {
+      options.initialBuildComplete(status);
+    }
+    if (watchQueue != null) {
+      return watchQueue.run();
+    } else {
+      queue.destroy();
+      return callback(status);
+    }
   });
   return queue.run();
 };
