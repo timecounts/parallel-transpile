@@ -1,6 +1,7 @@
 fs = require 'fs'
 cluster = require 'cluster'
 utils = require './utils'
+debug = require('debug')('parallelTranspile')
 
 cluster.setupMaster
   exec: "#{__dirname}/worker"
@@ -70,9 +71,9 @@ class Queue extends EventEmitter
     {path} = task
     if err
       @options.onError?(err)
-      console.log "[#{bucket.id}] Failed: #{path}"
+      debug "[#{bucket.id}] Failed: #{path}"
     else
-      console.log "[#{bucket.id}] Processed: #{path}"
+      debug "[#{bucket.id}] Processed: #{path}"
     i = @inProgress.indexOf(path)
     if i is -1
       throw new Error "This shouldn't be able to happen"
@@ -93,6 +94,7 @@ class Queue extends EventEmitter
     delete @paused
     @processNext()
     @emit 'empty' unless @inProgress.length > 0
+    return this
 
   rule: (path) ->
     for rule in @options.rules
@@ -212,15 +214,22 @@ module.exports = (options, callback) ->
   recurse options.source
 
   queue.on 'empty', ->
-    console.log "INITIAL BUILD COMPLETE"
+    debug "INITIAL BUILD COMPLETE"
     status = null
     if errorOccurred
       status = new Error "An error occurred"
     options.initialBuildComplete?(status)
+    queue.destroy()
+    queue = null
     if watchQueue?
       watchQueue.run()
     else
       # Finished
-      queue.destroy()
       callback(status)
   queue.run()
+  return {
+    kill: ->
+      queue?.destroy()
+      watchQueue?.destroy()
+      watcher?.close()
+  }
