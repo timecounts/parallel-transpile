@@ -338,9 +338,11 @@ module.exports = function(options, callback) {
             inExt = rule.inExt, outExt = rule.outExt;
             relativePath = filePath.substr(options.source.length);
             outPath = options.output + "/" + (utils.swapExtension(relativePath, inExt, outExt));
-            try {
-              stat2 = fs.statSync(outPath);
-            } catch (undefined) {}
+            stat2 = (function() {
+              try {
+                return fs.statSync(outPath);
+              } catch (undefined) {}
+            })();
             if (stat2 && stat2.mtime > stat.mtime) {
               shouldAdd = false;
             }

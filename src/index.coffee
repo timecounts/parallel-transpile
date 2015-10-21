@@ -204,8 +204,9 @@ module.exports = (options, callback) ->
             {inExt, outExt} = rule
             relativePath = filePath.substr(options.source.length)
             outPath = "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
-            try
-              stat2 = fs.statSync(outPath)
+            stat2 =
+              try
+                fs.statSync(outPath)
             if stat2 and stat2.mtime > stat.mtime
               shouldAdd = false
         queue.add(filePath) if shouldAdd
