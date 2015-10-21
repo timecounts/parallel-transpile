@@ -82,7 +82,7 @@ grunt.registerTask("parallel-transpile", function() {
     output: "build",
     source: "src",
 
-    types: [
+    type: [
       ".cjsx:jsx-loader,coffee-loader,cjsx-loader:.js",
       ".coffee:coffee-loader:.js",
       ".litcoffee:coffee-loader?literate:.js",
@@ -110,7 +110,7 @@ grunt.registerTask("parallel-transpile:watch", function() {
     output: "build",
     source: "src",
 
-    types: [
+    type: [
       ".cjsx:jsx-loader,coffee-loader,cjsx-loader:.js",
       ".coffee:coffee-loader:.js",
       ".litcoffee:coffee-loader?literate:.js",
