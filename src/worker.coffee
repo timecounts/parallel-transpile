@@ -1,8 +1,8 @@
 fs = require 'fs'
 Path = require 'path'
 mkdirp = require 'mkdirp'
-ApplySourceMap = require 'apply-source-map'
 utils = require './utils'
+{SourceMapGenerator, SourceMapConsumer} = require 'source-map'
 
 loaders = {}
 source = null
@@ -52,20 +52,14 @@ process.on 'message', (m) ->
     mkdirp.sync(Path.dirname(outPath))
     # XXX: support CSS/etc source maps
     if sourceMaps.length and outPath.match(/\.js$/)
-      sourceMaps.map (sourceMap) ->
-        sourceMap.file = Path.basename(outPath)
-        absoluteOutPath = Path.resolve(outPath)
-        absolutePath = Path.resolve(path)
-        sourceMap.sources = [
-          Path.relative(Path.dirname(absoluteOutPath), absolutePath)
-        ]
-        delete sourceMap.sourcesContent
       if sourceMaps.length is 1
         sourceMapString = JSON.stringify sourceMaps[0]
       else
-        sourceMapString = JSON.stringify(sourceMaps.shift())
-        while nextMap = sourceMaps.shift()
-          sourceMapString = ApplySourceMap(sourceMapString, nextMap)
+        last = sourceMaps.pop()
+        compoundMap = SourceMapGenerator.fromSourceMap(new SourceMapConsumer(JSON.stringify(last)))
+        while nextMap = sourceMaps.pop()
+          compoundMap.applySourceMap(new SourceMapConsumer(JSON.stringify(nextMap)))
+        sourceMapString = compoundMap.toString()
 
       src =
         """
@@ -75,6 +69,12 @@ process.on 'message', (m) ->
     fs.writeFileSync(outPath, src)
     fs.writeFileSync(mapPath, sourceMapString) if sourceMapString
     send 'complete'
+
+  absoluteOutPath = Path.resolve(outPath)
+  absolutePath = Path.resolve(path)
+  inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath)
+  outFile = Path.basename(outPath)
+  prevFile = inFile
 
   applyNext = ->
     next = remainingLoaderModules.pop()
@@ -108,6 +108,13 @@ process.on 'message', (m) ->
         else
           src = new Buffer(out)
         if map
+          map.sources = [prevFile]
+          if i > 0
+            map.file = "#{outFile}-#{i}"
+          else
+            map.file = outFile
+          prevFile = map.file
+          delete map.sourcesContent
           sourceMaps.push map
         applyNext()
     try
