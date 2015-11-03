@@ -4,6 +4,8 @@ mkdirp = require 'mkdirp'
 utils = require './utils'
 {SourceMapGenerator, SourceMapConsumer} = require 'source-map'
 
+EnhancedResolve = require 'enhanced-resolve'
+
 loaders = {}
 source = null
 output = null
@@ -95,6 +97,10 @@ process.on 'message', (m) ->
       sourceMap: true
       loaderIndex: i
       loaders: webpackLoaders
+      addDependency: addDependency = (file) -> # NOOP
+      dependency: addDependency
+      resolveSync: EnhancedResolve.sync
+      resolve: EnhancedResolve
       async: ->
         asyncCallback = true
         context.callback
