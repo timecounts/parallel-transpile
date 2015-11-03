@@ -37,149 +37,154 @@ init = function(options) {
 };
 
 process.on('message', function(m) {
-  var _, absoluteOutPath, absolutePath, applyNext, baseName, err, error, finished, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
-  if (m.init) {
-    return init(m.init);
-  }
-  if (!source) {
-    throw new Error("Not initialised");
-  }
-  path = m.path, (ref1 = m.rule, inExt = ref1.inExt, loaders = ref1.loaders, outExt = ref1.outExt);
-  relativePath = path.substr(source.length);
-  outPath = output + "/" + (utils.swapExtension(relativePath, inExt, outExt));
-  mapPath = output + "/" + (utils.swapExtension(relativePath, inExt, ".map"));
-  webpackLoaders = [];
-  baseName = Path.basename(relativePath);
-  requestString = baseName;
-  for (j = 0, len = loaders.length; j < len; j++) {
-    loader = loaders[j];
-    try {
-      requestString = loader + "!" + requestString;
-      ref2 = loader.match(/^([^?]+)(\?.*)?$/), _ = ref2[0], moduleName = ref2[1], query = ref2[2];
-      loaderModule = require(moduleName);
-      webpackLoaders.push({
-        request: requestString,
-        path: baseName,
-        query: query,
-        module: loaderModule
-      });
-    } catch (error) {
-      err = error;
-      return send(err);
+  var _, absoluteOutPath, absolutePath, applyNext, baseName, err, error, error1, finished, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
+  try {
+    if (m.init) {
+      return init(m.init);
     }
-  }
-  src = fs.readFileSync(path);
-  sourceMaps = [];
-  remainingLoaderModules = webpackLoaders.slice(0);
-  i = remainingLoaderModules.length;
-  finished = function() {
-    var compoundMap, last, nextMap, sourceMapString;
-    mkdirp.sync(Path.dirname(outPath));
-    if (sourceMaps.length && outPath.match(/\.js$/)) {
-      if (sourceMaps.length === 1) {
-        sourceMapString = JSON.stringify(sourceMaps[0]);
-      } else {
-        last = sourceMaps.pop();
-        compoundMap = SourceMapGenerator.fromSourceMap(new SourceMapConsumer(JSON.stringify(last)));
-        while (nextMap = sourceMaps.pop()) {
-          compoundMap.applySourceMap(new SourceMapConsumer(JSON.stringify(nextMap)));
-        }
-        sourceMapString = compoundMap.toString();
+    if (!source) {
+      throw new Error("Not initialised");
+    }
+    path = m.path, (ref1 = m.rule, inExt = ref1.inExt, loaders = ref1.loaders, outExt = ref1.outExt);
+    relativePath = path.substr(source.length);
+    outPath = output + "/" + (utils.swapExtension(relativePath, inExt, outExt));
+    mapPath = output + "/" + (utils.swapExtension(relativePath, inExt, ".map"));
+    webpackLoaders = [];
+    baseName = Path.basename(relativePath);
+    requestString = baseName;
+    for (j = 0, len = loaders.length; j < len; j++) {
+      loader = loaders[j];
+      try {
+        requestString = loader + "!" + requestString;
+        ref2 = loader.match(/^([^?]+)(\?.*)?$/), _ = ref2[0], moduleName = ref2[1], query = ref2[2];
+        loaderModule = require(moduleName);
+        webpackLoaders.push({
+          request: requestString,
+          path: baseName,
+          query: query,
+          module: loaderModule
+        });
+      } catch (error) {
+        err = error;
+        return send(err);
       }
-      src = (src.toString('utf8')) + "\n//# sourceMappingURL=" + (Path.basename(mapPath));
     }
-    fs.writeFileSync(outPath, src);
-    if (sourceMapString) {
-      fs.writeFileSync(mapPath, sourceMapString);
-    }
-    return send('complete');
-  };
-  absoluteOutPath = Path.resolve(outPath);
-  absolutePath = Path.resolve(path);
-  inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath);
-  outFile = Path.basename(outPath);
-  prevFile = inFile;
-  applyNext = function() {
-    var addDependency, asyncCallback, cacheable, context, error1, input, next, out;
-    next = remainingLoaderModules.pop();
-    i--;
-    if (!next) {
-      return finished();
-    }
-    asyncCallback = false;
-    cacheable = false;
-    context = {
-      options: {},
-      cacheable: function(_cacheable) {
-        if (_cacheable == null) {
-          _cacheable = true;
-        }
-        return cacheable = _cacheable;
-      },
-      version: 1,
-      request: next.request,
-      path: next.path,
-      resource: baseName,
-      resourcePath: baseName,
-      resourceQuery: "",
-      query: next.query,
-      sourceMap: true,
-      loaderIndex: i,
-      loaders: webpackLoaders,
-      addDependency: addDependency = function(file) {},
-      dependency: addDependency,
-      resolveSync: EnhancedResolve.sync,
-      resolve: EnhancedResolve,
-      async: function() {
-        asyncCallback = true;
-        return context.callback;
-      },
-      callback: function(err, out, map) {
-        asyncCallback = true;
-        if (err) {
-          send(err);
-          return;
-        }
-        if (out instanceof Buffer) {
-          src = out;
+    src = fs.readFileSync(path);
+    sourceMaps = [];
+    remainingLoaderModules = webpackLoaders.slice(0);
+    i = remainingLoaderModules.length;
+    finished = function() {
+      var compoundMap, last, nextMap, sourceMapString;
+      mkdirp.sync(Path.dirname(outPath));
+      if (sourceMaps.length && outPath.match(/\.js$/)) {
+        if (sourceMaps.length === 1) {
+          sourceMapString = JSON.stringify(sourceMaps[0]);
         } else {
-          src = new Buffer(out);
-        }
-        if (map) {
-          map.sources = [prevFile];
-          if (i > 0) {
-            map.file = outFile + "-" + i;
-          } else {
-            map.file = outFile;
+          last = sourceMaps.pop();
+          compoundMap = SourceMapGenerator.fromSourceMap(new SourceMapConsumer(JSON.stringify(last)));
+          while (nextMap = sourceMaps.pop()) {
+            compoundMap.applySourceMap(new SourceMapConsumer(JSON.stringify(nextMap)));
           }
-          prevFile = map.file;
-          delete map.sourcesContent;
-          sourceMaps.push(map);
+          sourceMapString = compoundMap.toString();
         }
-        return applyNext();
+        src = (src.toString('utf8')) + "\n//# sourceMappingURL=" + (Path.basename(mapPath));
+      }
+      fs.writeFileSync(outPath, src);
+      if (sourceMapString) {
+        fs.writeFileSync(mapPath, sourceMapString);
+      }
+      return send('complete');
+    };
+    absoluteOutPath = Path.resolve(outPath);
+    absolutePath = Path.resolve(path);
+    inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath);
+    outFile = Path.basename(outPath);
+    prevFile = inFile;
+    applyNext = function() {
+      var addDependency, asyncCallback, cacheable, context, error1, input, next, out;
+      next = remainingLoaderModules.pop();
+      i--;
+      if (!next) {
+        return finished();
+      }
+      asyncCallback = false;
+      cacheable = false;
+      context = {
+        options: {},
+        cacheable: function(_cacheable) {
+          if (_cacheable == null) {
+            _cacheable = true;
+          }
+          return cacheable = _cacheable;
+        },
+        version: 1,
+        request: next.request,
+        path: next.path,
+        resource: baseName,
+        resourcePath: baseName,
+        resourceQuery: "",
+        query: next.query,
+        sourceMap: true,
+        loaderIndex: i,
+        loaders: webpackLoaders,
+        addDependency: addDependency = function(file) {},
+        dependency: addDependency,
+        resolveSync: EnhancedResolve.sync,
+        resolve: EnhancedResolve,
+        async: function() {
+          asyncCallback = true;
+          return context.callback;
+        },
+        callback: function(err, out, map) {
+          asyncCallback = true;
+          if (err) {
+            send(err);
+            return;
+          }
+          if (out instanceof Buffer) {
+            src = out;
+          } else {
+            src = new Buffer(out);
+          }
+          if (map) {
+            map.sources = [prevFile];
+            if (i > 0) {
+              map.file = outFile + "-" + i;
+            } else {
+              map.file = outFile;
+            }
+            prevFile = map.file;
+            delete map.sourcesContent;
+            sourceMaps.push(map);
+          }
+          return applyNext();
+        }
+      };
+      try {
+        if (next.module.raw) {
+          input = src;
+        } else {
+          input = src.toString('utf8');
+        }
+        out = next.module.call(context, input);
+        if (!asyncCallback) {
+          if (out instanceof Buffer) {
+            src = out;
+          } else {
+            src = new Buffer(out);
+          }
+          return applyNext();
+        }
+      } catch (error1) {
+        err = error1;
+        send(err);
       }
     };
-    try {
-      if (next.module.raw) {
-        input = src;
-      } else {
-        input = src.toString('utf8');
-      }
-      out = next.module.call(context, input);
-      if (!asyncCallback) {
-        if (out instanceof Buffer) {
-          src = out;
-        } else {
-          src = new Buffer(out);
-        }
-        return applyNext();
-      }
-    } catch (error1) {
-      err = error1;
-      send(err);
-    }
-  };
-  return applyNext();
+    return applyNext();
+  } catch (error1) {
+    err = error1;
+    return send(err);
+  }
 });
 
 //# sourceMappingURL=worker.js.map
