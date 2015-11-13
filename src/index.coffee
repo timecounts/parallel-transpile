@@ -2,13 +2,16 @@ fs = require 'fs'
 cluster = require 'cluster'
 utils = require './utils'
 debug = require('debug')('parallelTranspile')
+Path = require 'path'
+
+STATE_FILENAME = ".parallel-transpile.state"
 
 cluster.setupMaster
   exec: "#{__dirname}/worker"
   args: []
 
 if !cluster.isMaster
-  require './worker'
+  require "#{__dirname}/worker"
   return
 
 EventEmitter = require 'events'
@@ -35,8 +38,8 @@ class Bucket extends EventEmitter
   receive: (message) =>
     task = @queue.shift()
     @perform()
-    if message is 'complete'
-      @emit 'complete', this, null, task
+    if message?.msg is 'complete'
+      @emit 'complete', this, null, task, message.details
     else
       # Must be an error
       @emit 'complete', this, message, task
@@ -66,13 +69,21 @@ class Queue extends EventEmitter
     bucket.destroy() for bucket in @buckets
     @buckets = null
 
-  complete: (bucket, err, task) =>
+  complete: (bucket, err, task, details = {}) =>
     {path} = task
     if err
       @options.onError?(err)
       debug "[#{bucket.id}] Failed: #{path}"
     else
-      debug "[#{bucket.id}] Processed: #{path}"
+      deps = Object.keys(details.dependencies)[1..]
+      if deps.length
+        deps = deps.map (p) => Path.relative(@options.source, p)
+        debug "[#{bucket.id}] Processed: #{path} (deps: #{deps})"
+      else
+        debug "[#{bucket.id}] Processed: #{path}"
+      outPath = details.outPath
+      delete details.outPath
+      @options.setState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
       throw new Error "This shouldn't be able to happen"
@@ -141,6 +152,9 @@ module.exports = (options, callback) ->
   if !fs.existsSync(options.output) or !fs.statSync(options.output).isDirectory()
     return callback error(3, "Output option must be a directory")
 
+  options.output = Path.resolve(options.output)
+  options.source = Path.resolve(options.source)
+
   options.rules ?= []
   options.type = [options.type] if options.type and !Array.isArray(options.type)
   for type in options.type ? []
@@ -170,6 +184,7 @@ module.exports = (options, callback) ->
   options.parallel ||= os.cpus().length
   options.parallel = Math.min(options.parallel, options.maxParallel ? 16)
 
+
   if options.watch
     watchQueue = new Queue(options)
     watcher = chokidar.watch options.source
@@ -183,6 +198,26 @@ module.exports = (options, callback) ->
   options.onError = ->
     errorOccurred = true
     oldOnError?.apply(this, arguments)
+
+  try
+    state = JSON.parse(fs.readFileSync("#{options.output}/#{STATE_FILENAME}"))
+  catch
+    state = {}
+  options.state = state
+  options.setState = (filename, obj) ->
+    options.state[filename] = obj
+    fs.writeFileSync "#{options.output}/#{STATE_FILENAME}", JSON.stringify(options.state)
+
+  upToDate = (filename) ->
+    obj = options.state[filename]
+    return false unless obj
+    for file, {mtime} of obj.dependencies
+      stat2 =
+        try
+          fs.statSync(file)
+      return false unless stat2
+      return false if +stat2.mtime > mtime
+    return true
 
   queue = new Queue(options, true)
   recurse = (path) ->
@@ -202,11 +237,8 @@ module.exports = (options, callback) ->
           if rule
             {inExt, outExt} = rule
             relativePath = filePath.substr(options.source.length)
-            outPath = "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
-            stat2 =
-              try
-                fs.statSync(outPath)
-            if stat2 and stat2.mtime > stat.mtime
+            outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
+            if upToDate(outPath)
               shouldAdd = false
         queue.add(filePath) if shouldAdd
     return

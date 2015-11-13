@@ -33,11 +33,12 @@ send = function(message) {
 
 init = function(options) {
   source = options.source.replace(/\/*$/, "/");
-  return output = options.output.replace(/\/+$/, "");
+  output = options.output.replace(/\/+$/, "");
+  return process.chdir(source);
 };
 
 process.on('message', function(m) {
-  var _, absoluteOutPath, absolutePath, applyNext, baseName, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
+  var _, absoluteOutPath, absolutePath, applyNext, baseName, details, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, obj, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
   try {
     if (m.init) {
       return init(m.init);
@@ -94,13 +95,26 @@ process.on('message', function(m) {
       if (sourceMapString) {
         fs.writeFileSync(mapPath, sourceMapString);
       }
-      return send('complete');
+      return send({
+        msg: 'complete',
+        details: details
+      });
     };
     absoluteOutPath = Path.resolve(outPath);
     absolutePath = Path.resolve(path);
     inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath);
     outFile = Path.basename(outPath);
     prevFile = inFile;
+    details = {
+      outPath: absoluteOutPath,
+      dependencies: (
+        obj = {},
+        obj["" + absolutePath] = {
+          mtime: +new Date()
+        },
+        obj
+      )
+    };
     applyNext = function() {
       var addDependency, asyncCallback, cacheable, context, error1, input, next, out;
       next = remainingLoaderModules.pop();
@@ -129,7 +143,11 @@ process.on('message', function(m) {
         sourceMap: true,
         loaderIndex: i,
         loaders: webpackLoaders,
-        addDependency: addDependency = function(file) {},
+        addDependency: addDependency = function(file) {
+          return details.dependencies[Path.resolve(file)] = {
+            mtime: +new Date()
+          };
+        },
         dependency: addDependency,
         resolveSync: EnhancedResolve.sync,
         resolve: EnhancedResolve,
