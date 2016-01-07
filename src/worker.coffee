@@ -28,6 +28,7 @@ process.on 'message', (m) ->
     return init(m.init) if m.init
     throw new Error "Not initialised" unless source
     {path, rule: {inExt, loaders, outExt}} = m
+    fullPath = Path.resolve(path)
     relativePath = path.substr(source.length)
     outPath = "#{output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
     mapPath = "#{output}/#{utils.swapExtension(relativePath, inExt, ".map")}"
@@ -90,6 +91,7 @@ process.on 'message', (m) ->
         cacheable: (_cacheable = true) -> cacheable = _cacheable
         version: 1
         request: next.request
+        context: Path.dirname(fullPath)
         path: next.path
         resource: baseName
         resourcePath: baseName

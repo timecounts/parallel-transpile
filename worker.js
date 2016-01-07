@@ -37,7 +37,7 @@ init = function(options) {
 };
 
 process.on('message', function(m) {
-  var _, absoluteOutPath, absolutePath, applyNext, baseName, err, error, error1, finished, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
+  var _, absoluteOutPath, absolutePath, applyNext, baseName, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
   try {
     if (m.init) {
       return init(m.init);
@@ -46,6 +46,7 @@ process.on('message', function(m) {
       throw new Error("Not initialised");
     }
     path = m.path, (ref1 = m.rule, inExt = ref1.inExt, loaders = ref1.loaders, outExt = ref1.outExt);
+    fullPath = Path.resolve(path);
     relativePath = path.substr(source.length);
     outPath = output + "/" + (utils.swapExtension(relativePath, inExt, outExt));
     mapPath = output + "/" + (utils.swapExtension(relativePath, inExt, ".map"));
@@ -119,6 +120,7 @@ process.on('message', function(m) {
         },
         version: 1,
         request: next.request,
+        context: Path.dirname(fullPath),
         path: next.path,
         resource: baseName,
         resourcePath: baseName,

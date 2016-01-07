@@ -14,7 +14,6 @@ if !cluster.isMaster
 EventEmitter = require 'events'
 chokidar = require 'chokidar'
 os = require 'os'
-child_process = require 'child_process'
 
 error = (code, message) ->
   err = new Error message
