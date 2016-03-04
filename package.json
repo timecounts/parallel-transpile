@@ -7,7 +7,7 @@
     "parallel-transpile": "./bin/parallel-transpile"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "mocha test/**/*-test.*",
     "prepublish": "coffee -cbmo . src",
     "watch": "coffee -cwbmo . src"
   },
@@ -44,10 +44,14 @@
     "source-map": "^0.5.3"
   },
   "devDependencies": {
+    "chai": "3.5.0",
     "cjsx-loader": "^2.0.1",
     "coffee-loader": "^0.7.2",
     "coffee-script": "^1.10.0",
-    "jsx-loader": "^0.13.1"
+    "jsx-loader": "^0.13.1",
+    "mocha": "2.4.5",
+    "node-sass": "3.4.2",
+    "sass-loader": "3.1.2"
   },
   "peerDependencies": {
     "chokidar": "^1.0.1"

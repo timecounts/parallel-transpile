@@ -1,5 +1,7 @@
 .gitignore
 .npmignore
-build
-src
+build/
+src/
 *.map
+test/
+fixtures/
