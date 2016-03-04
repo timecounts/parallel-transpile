@@ -83,3 +83,33 @@ describe 'SCSS', ->
         .bar {
           color: #0f0; }
         """
+
+  describe 'newer', ->
+    before setupScratchpad
+
+    before transpile
+      newer: true
+      rules: [
+        RULES.scss
+      ]
+
+    before ->
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "NEWER"
+
+    before transpile
+      newer: true
+      rules: [
+        RULES.scss
+      ]
+
+
+    it 'foo.css should be ignored', ->
+      expect(output("scss/foo.css", 'utf-8')).to.eql """
+        NEWER
+        """
+
+    it 'compiles bar.css', ->
+      expect(output("scss/bar.css", 'utf-8')).to.eql """
+        .bar {
+          color: #0f0; }
+        """
