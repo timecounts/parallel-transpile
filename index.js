@@ -73,6 +73,9 @@ Bucket = (function(superClass) {
   Bucket.prototype.receive = function(message) {
     var task;
     task = this.queue.shift();
+    if (!task) {
+      return;
+    }
     this.perform();
     if ((message != null ? message.msg : void 0) === 'complete') {
       return this.emit('complete', this, null, task, message.details);

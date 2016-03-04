@@ -43,6 +43,9 @@ class Bucket extends EventEmitter
 
   receive: (message) =>
     task = @queue.shift()
+    if !task
+      # Error during startup?
+      return
     @perform()
     if message?.msg is 'complete'
       @emit 'complete', this, null, task, message.details

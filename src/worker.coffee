@@ -22,7 +22,11 @@ send = (message) ->
 init = (options) ->
   source = options.source.replace(/\/*$/, "/")
   output = options.output.replace(/\/+$/, "")
-  process.chdir(source)
+  try
+    process.chdir(source)
+  catch e
+    console.error "ERROR: could not change into source folder '#{source}'"
+    throw e
 
 process.on 'message', (m) ->
   try

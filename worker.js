@@ -32,9 +32,16 @@ send = function(message) {
 };
 
 init = function(options) {
+  var e, error;
   source = options.source.replace(/\/*$/, "/");
   output = options.output.replace(/\/+$/, "");
-  return process.chdir(source);
+  try {
+    return process.chdir(source);
+  } catch (error) {
+    e = error;
+    console.error("ERROR: could not change into source folder '" + source + "'");
+    throw e;
+  }
 };
 
 process.on('message', function(m) {
