@@ -24,13 +24,26 @@ setupTranspiler = (_options) -> (done) ->
   options = makeOptions _options,
     watch: true
     initialBuildComplete: done
+    watchBuildComplete: =>
+      @transpiler.buildNumber++
   @transpiler = parallelTranspile options, (err) ->
     throw err if err
     console.log "Transpiler exited"
+  @transpiler.buildNumber = 0
 
-teardownTranspile = ->
+teardownTranspiler = ->
   @transpiler?.kill()
   delete @transpiler
+
+transpileWait = (fn) -> (done) ->
+  counter = @transpiler.buildNumber
+  fn()
+  check = =>
+    if !@transpiler || @transpiler.buildNumber > counter
+      done() if @transpiler # On fail, @transpiler will be cleaned up, but we still need to clearInterval
+      clearInterval(interval)
+  interval = setInterval check, 20
+  check()
 
 output = (path, options) ->
   try
@@ -148,6 +161,71 @@ describe 'SCSS', ->
       rules: [
         RULES.scss
       ]
+
+    it 'compiles foo.css', ->
+      expect(output("scss/foo.css", 'utf-8')).to.eql """
+        .foo {
+          color: red; }
+        """
+
+    it 'compiles bar.css', ->
+      expect(output("scss/bar.css", 'utf-8')).to.eql """
+        .bar {
+          background-color: green; }
+        """
+
+  describe 'watch', ->
+    before setupScratchpad
+
+    after teardownTranspiler
+    before setupTranspiler
+      newer: true
+      rules: [
+        RULES.scss
+      ]
+
+    it 'compiles foo.css', ->
+      expect(output("scss/foo.css", 'utf-8')).to.eql """
+        .foo {
+          color: #f00; }
+        """
+
+    it 'compiles bar.css', ->
+      expect(output("scss/bar.css", 'utf-8')).to.eql """
+        .bar {
+          color: #0f0; }
+        """
+
+    it 'then modifies bar.css and waits for transpile', transpileWait ->
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
+        """
+        @import "vars";
+        .bar {
+          background-color: $green;
+        }
+        """
+
+    it 'foo.css should be unchanged', ->
+      expect(output("scss/foo.css", 'utf-8')).to.eql """
+        UNMODIFIED
+        """
+
+    it 'compiles bar.css', ->
+      expect(output("scss/bar.css", 'utf-8')).to.eql """
+        .bar {
+          background-color: #0f0; }
+        """
+
+    it 'then modifies _vars.css and waits for transpile', transpileWait ->
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD}/lib/scss/_vars.scss",
+        """
+        $red: red;
+        $green: green;
+        """
 
     it 'compiles foo.css', ->
       expect(output("scss/foo.css", 'utf-8')).to.eql """
