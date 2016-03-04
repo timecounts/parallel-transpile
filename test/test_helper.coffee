@@ -20,7 +20,6 @@ spawnSync = (cmd, args) ->
 
 setupScratchpad = ->
   spawnSync 'rm', ['-Rf', SCRATCHPAD]
-  fs.mkdirSync SCRATCHPAD
   spawnSync 'cp', ['-a', FIXTURES, SCRATCHPAD]
   fs.mkdirSync SCRATCHPAD_OUTPUT
 
