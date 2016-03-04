@@ -95,7 +95,7 @@ class Queue extends EventEmitter
         [l, {version: versionFromLoaderString(l)}]
       details.ruleDependencies = (task.rule.dependencies || []).map (dep) ->
         depStat = fs.statSync(dep)
-        return [dep, {mtime: depStat.mtime}]
+        return [dep, {mtime: +depStat.mtime}]
       @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
@@ -249,6 +249,11 @@ module.exports = (options, callback) ->
       [l, {version}] = c
       currentVersion = versionFromLoaderString(l)
       if currentVersion != version
+        return false
+    for c in obj.ruleDependencies
+      [f, {mtime}] = c
+      currentMtime = +fs.statSync(f).mtime
+      if currentMtime > mtime
         return false
     return true
 
