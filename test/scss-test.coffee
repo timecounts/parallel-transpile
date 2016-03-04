@@ -16,6 +16,22 @@ setupScratchpad = ->
   childProcess.spawnSync 'rsync', ['-a', FIXTURES, SCRATCHPAD]
   fs.mkdirSync SCRATCHPAD_OUTPUT
 
+transpile = (_options) -> (done) ->
+  options = makeOptions _options
+  parallelTranspile options, done
+
+setupTranspiler = (_options) -> (done) ->
+  options = makeOptions _options,
+    watch: true
+    initialBuildComplete: done
+  @transpiler = parallelTranspile options, (err) ->
+    throw err if err
+    console.log "Transpiler exited"
+
+teardownTranspile = ->
+  @transpiler?.kill()
+  delete @transpiler
+
 output = (path, options) ->
   try
     ret = fs.readFileSync("#{SCRATCHPAD_OUTPUT}/#{path}", options)
@@ -38,25 +54,23 @@ RULES =
 
 
 
-makeOptions = (opts) ->
+makeOptions = (opts...) ->
   Object.assign {
     output: "#{SCRATCHPAD_OUTPUT}",
     source: "#{SCRATCHPAD_SOURCE}",
-  }, opts
+  }, opts...
 
 
 describe 'SCSS', ->
 
-  options = makeOptions
-    rules: [
-      RULES.scss
-    ]
-
-  before setupScratchpad
-
   describe 'normal', ->
-    before (done) ->
-      parallelTranspile options, done
+    before setupScratchpad
+
+    before transpile
+      rules: [
+        RULES.scss
+      ]
+
 
     it 'compiles foo.css', ->
       expect(output("scss/foo.css", 'utf-8')).to.eql """
