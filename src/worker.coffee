@@ -113,9 +113,14 @@ process.on 'message', (m) ->
         loaderIndex: i
         loaders: webpackLoaders
         addDependency: addDependency = (file) ->
-          fileStat = fs.statSync Path.resolve(file)
-          details.dependencies[Path.resolve(file)] =
-            mtime: +fileStat.mtime
+          try
+            fileStat = fs.statSync Path.resolve(file)
+            details.dependencies[Path.resolve(file)] =
+              mtime: +fileStat.mtime
+          catch e
+            console.error "FAILED TO STAT DEPENDENCY '#{file}' of '#{inFile}'"
+            details.dependencies[Path.resolve(file)] =
+              mtime: 0
         dependency: addDependency
         resolveSync: EnhancedResolve.sync
         resolve: EnhancedResolve

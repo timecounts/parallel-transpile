@@ -145,11 +145,19 @@ process.on('message', function(m) {
         loaderIndex: i,
         loaders: webpackLoaders,
         addDependency: addDependency = function(file) {
-          var fileStat;
-          fileStat = fs.statSync(Path.resolve(file));
-          return details.dependencies[Path.resolve(file)] = {
-            mtime: +fileStat.mtime
-          };
+          var e, error1, fileStat;
+          try {
+            fileStat = fs.statSync(Path.resolve(file));
+            return details.dependencies[Path.resolve(file)] = {
+              mtime: +fileStat.mtime
+            };
+          } catch (error1) {
+            e = error1;
+            console.error("FAILED TO STAT DEPENDENCY '" + file + "' of '" + inFile + "'");
+            return details.dependencies[Path.resolve(file)] = {
+              mtime: 0
+            };
+          }
         },
         dependency: addDependency,
         resolveSync: EnhancedResolve.sync,
