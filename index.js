@@ -171,6 +171,15 @@ Queue = (function(superClass) {
           }
         ];
       });
+      details.ruleDependencies = (task.rule.dependencies || []).map(function(dep) {
+        var depStat;
+        depStat = fs.statSync(dep);
+        return [
+          dep, {
+            mtime: depStat.mtime
+          }
+        ];
+      });
       this.options.setFileState(outPath, details);
     }
     i = this.inProgress.indexOf(path);

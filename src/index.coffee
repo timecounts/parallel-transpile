@@ -93,6 +93,9 @@ class Queue extends EventEmitter
       delete details.outPath
       details.loaders = task.rule.loaders.map (l) ->
         [l, {version: versionFromLoaderString(l)}]
+      details.ruleDependencies = (task.rule.dependencies || []).map (dep) ->
+        depStat = fs.statSync(dep)
+        return [dep, {mtime: depStat.mtime}]
       @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
