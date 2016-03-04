@@ -1,59 +1,17 @@
-FIXTURES = "#{__dirname}/../fixtures/"
-SCRATCHPAD = "#{__dirname}/scratchpad/"
-SCRATCHPAD_SOURCE = "#{SCRATCHPAD}/src"
-SCRATCHPAD_OUTPUT = "#{SCRATCHPAD}/build"
-
+{
+  SCRATCHPAD
+  SCRATCHPAD_SOURCE
+  SCRATCHPAD_OUTPUT
+  expect
+  parallelTranspile
+  setupScratchpad
+  transpile
+  setupTranspiler
+  teardownTranspiler
+  transpileWait
+  getOutput
+} = require './test_helper'
 fs = require 'fs'
-childProcess = require 'child_process'
-chai = require 'chai'
-expect = chai.expect
-
-parallelTranspile = require '../index'
-
-setupScratchpad = ->
-  childProcess.spawnSync 'rm', ['-Rf', SCRATCHPAD]
-  fs.mkdirSync SCRATCHPAD
-  childProcess.spawnSync 'rsync', ['-a', FIXTURES, SCRATCHPAD]
-  fs.mkdirSync SCRATCHPAD_OUTPUT
-
-transpile = (_options) -> (done) ->
-  options = makeOptions _options
-  parallelTranspile options, done
-
-setupTranspiler = (_options) -> (done) ->
-  options = makeOptions _options,
-    watch: true
-    initialBuildComplete: done
-    watchBuildComplete: =>
-      @transpiler.buildNumber++
-  @transpiler = parallelTranspile options, (err) ->
-    throw err if err
-    console.log "Transpiler exited"
-  @transpiler.buildNumber = 0
-
-teardownTranspiler = ->
-  @transpiler?.kill()
-  delete @transpiler
-
-transpileWait = (fn) -> (done) ->
-  counter = @transpiler.buildNumber
-  fn()
-  check = =>
-    if !@transpiler || @transpiler.buildNumber > counter
-      done() if @transpiler # On fail, @transpiler will be cleaned up, but we still need to clearInterval
-      clearInterval(interval)
-  interval = setInterval check, 20
-  check()
-
-output = (path, options) ->
-  try
-    ret = fs.readFileSync("#{SCRATCHPAD_OUTPUT}/#{path}", options)
-    if ret.trim
-      return ret.trim()
-    else
-      return ret
-  catch e
-    return null
 
 scssOptions =
   includePaths: ["#{SCRATCHPAD}/lib/scss"]
@@ -64,15 +22,6 @@ RULES =
     inExt: ".scss"
     loaders: ["sass-loader?#{JSON.stringify(scssOptions)}"]
     outExt: ".css"
-
-
-
-makeOptions = (opts...) ->
-  Object.assign {
-    output: "#{SCRATCHPAD_OUTPUT}",
-    source: "#{SCRATCHPAD_SOURCE}",
-  }, opts...
-
 
 describe 'SCSS', ->
 
@@ -86,13 +35,13 @@ describe 'SCSS', ->
 
 
     it 'compiles foo.css', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         .foo {
           color: #f00; }
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           color: #0f0; }
         """
@@ -107,13 +56,13 @@ describe 'SCSS', ->
       ]
 
     it 'compiles foo.css', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         .foo {
           color: #f00; }
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           color: #0f0; }
         """
@@ -137,12 +86,12 @@ describe 'SCSS', ->
 
 
     it 'foo.css should be unchanged', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         UNMODIFIED
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           background-color: #0f0; }
         """
@@ -163,13 +112,13 @@ describe 'SCSS', ->
       ]
 
     it 'compiles foo.css', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         .foo {
           color: red; }
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           background-color: green; }
         """
@@ -185,13 +134,13 @@ describe 'SCSS', ->
       ]
 
     it 'compiles foo.css', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         .foo {
           color: #f00; }
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           color: #0f0; }
         """
@@ -208,12 +157,12 @@ describe 'SCSS', ->
         """
 
     it 'foo.css should be unchanged', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         UNMODIFIED
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           background-color: #0f0; }
         """
@@ -228,13 +177,13 @@ describe 'SCSS', ->
         """
 
     it 'compiles foo.css', ->
-      expect(output("scss/foo.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
         .foo {
           color: red; }
         """
 
     it 'compiles bar.css', ->
-      expect(output("scss/bar.css", 'utf-8')).to.eql """
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           background-color: green; }
         """
