@@ -247,22 +247,28 @@ module.exports = (options, callback) ->
         try
           fs.statSync(file)
       return false unless stat2
-      return false if +stat2.mtime > mtime
+      if +stat2.mtime > mtime
+        debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
+        return false
     loaderConfigs = obj.loaders?.map((c) -> c[0])
     if rule.loaders.join("$$") != loaderConfigs?.join("$$")
+      debug("Loaders for #{file} have changed")
       return false
     for c in obj.loaders
       [l, {version}] = c
       currentVersion = versionFromLoaderString(l)
       if currentVersion != version
+        debug("Loader version for #{l} (#{file}) has changed (#{version} -> #{currentVersion})")
         return false
     ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
     if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
+      debug("Rule dependencies for #{file} have changed")
       return false
     for c in obj.ruleDependencies
       [f, {mtime}] = c
       currentMtime = +fs.statSync(f).mtime
       if currentMtime > mtime
+        debug("Dependency #{f} for #{file} has changed")
         return false
     return true
 

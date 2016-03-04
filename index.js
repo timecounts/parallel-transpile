@@ -288,7 +288,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var base, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, state, type, upToDate, watchChange, watchQueue, watchRemove;
+  var base, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, seen, state, type, upToDate, watchChange, watchQueue, watchRemove;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -366,7 +366,22 @@ module.exports = function(options, callback) {
       return results;
     };
     watchRemove = function(file) {
-      return watchQueue.remove(file);
+      var dependencies, deps, ref4, ref5, results, self, stateFile;
+      watchQueue.remove(file);
+      if (options["delete"]) {
+        ref4 = options.state.files;
+        results = [];
+        for (stateFile in ref4) {
+          dependencies = ref4[stateFile].dependencies;
+          ref5 = Object.keys(dependencies), self = ref5[0], deps = 2 <= ref5.length ? slice.call(ref5, 1) : [];
+          if (file === self) {
+            results.push(fs.unlink(stateFile));
+          } else {
+            results.push(void 0);
+          }
+        }
+        return results;
+      }
     };
     watcher = chokidar.watch(options.source);
     watcher.on('ready', function() {
@@ -412,6 +427,7 @@ module.exports = function(options, callback) {
         return false;
       }
       if (+stat2.mtime > mtime) {
+        debug(file + " has changed (" + mtime + " -> " + (+stat2.mtime) + ")");
         return false;
       }
     }
@@ -419,6 +435,7 @@ module.exports = function(options, callback) {
       return c[0];
     }) : void 0;
     if (rule.loaders.join("$$") !== (loaderConfigs != null ? loaderConfigs.join("$$") : void 0)) {
+      debug("Loaders for " + file + " have changed");
       return false;
     }
     ref6 = obj.loaders;
@@ -427,6 +444,7 @@ module.exports = function(options, callback) {
       l = c[0], (ref7 = c[1], version = ref7.version);
       currentVersion = versionFromLoaderString(l);
       if (currentVersion !== version) {
+        debug("Loader version for " + l + " (" + file + ") has changed (" + version + " -> " + currentVersion + ")");
         return false;
       }
     }
@@ -434,6 +452,7 @@ module.exports = function(options, callback) {
       return c[0];
     }) : void 0) || [];
     if (((ref9 = rule.dependencies) != null ? ref9 : []).join("$$") !== ruleDependencyConfigs.join("$$")) {
+      debug("Rule dependencies for " + file + " have changed");
       return false;
     }
     ref10 = obj.ruleDependencies;
@@ -442,12 +461,14 @@ module.exports = function(options, callback) {
       f = c[0], (ref11 = c[1], mtime = ref11.mtime);
       currentMtime = +fs.statSync(f).mtime;
       if (currentMtime > mtime) {
+        debug("Dependency " + f + " for " + file + " has changed");
         return false;
       }
     }
     return true;
   };
   queue = new Queue(options, true);
+  seen = [];
   recurse = function(path) {
     var aRule, file, filePath, files, k, len1, len2, m, outPath, ref4, relativePath, rule, shouldAdd, stat;
     files = fs.readdirSync(path);
@@ -477,6 +498,7 @@ module.exports = function(options, callback) {
             inExt = rule.inExt, outExt = rule.outExt;
             relativePath = filePath.substr(options.source.length);
             outPath = Path.resolve(options.output + "/" + (utils.swapExtension(relativePath, inExt, outExt)));
+            seen.push(outPath);
             if (upToDate(outPath, rule)) {
               shouldAdd = false;
             }
@@ -500,7 +522,26 @@ module.exports = function(options, callback) {
     }
   };
   queue.on('empty', function() {
-    var status;
+    var all, file, k, len1, status, unseen;
+    if (options["delete"]) {
+      all = Object.keys(options.state.files);
+      unseen = (function() {
+        var k, len1, results;
+        results = [];
+        for (k = 0, len1 = all.length; k < len1; k++) {
+          file = all[k];
+          if (indexOf.call(seen, file) < 0) {
+            results.push(file);
+          }
+        }
+        return results;
+      })();
+      for (k = 0, len1 = unseen.length; k < len1; k++) {
+        file = unseen[k];
+        debug("Deleting file with no source: " + file);
+        fs.unlinkSync(file);
+      }
+    }
     debug("INITIAL BUILD COMPLETE");
     status = getStatus(false);
     if (typeof options.initialBuildComplete === "function") {
