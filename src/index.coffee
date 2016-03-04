@@ -250,6 +250,9 @@ module.exports = (options, callback) ->
       currentVersion = versionFromLoaderString(l)
       if currentVersion != version
         return false
+    ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
+    if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
+      return false
     for c in obj.ruleDependencies
       [f, {mtime}] = c
       currentMtime = +fs.statSync(f).mtime

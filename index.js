@@ -395,7 +395,7 @@ module.exports = function(options, callback) {
     return fs.writeFileSync(options.output + "/" + STATE_FILENAME, JSON.stringify(options.state));
   };
   upToDate = function(filename, rule) {
-    var c, currentMtime, currentVersion, f, file, k, l, len1, len2, loaderConfigs, m, mtime, obj, ref4, ref5, ref6, ref7, ref8, ref9, stat2, version;
+    var c, currentMtime, currentVersion, f, file, k, l, len1, len2, loaderConfigs, m, mtime, obj, ref10, ref11, ref4, ref5, ref6, ref7, ref8, ref9, ruleDependencyConfigs, stat2, version;
     obj = options.state.files[filename];
     if (!obj) {
       return false;
@@ -430,10 +430,16 @@ module.exports = function(options, callback) {
         return false;
       }
     }
-    ref8 = obj.ruleDependencies;
-    for (m = 0, len2 = ref8.length; m < len2; m++) {
-      c = ref8[m];
-      f = c[0], (ref9 = c[1], mtime = ref9.mtime);
+    ruleDependencyConfigs = ((ref8 = obj.ruleDependencies) != null ? ref8.map(function(c) {
+      return c[0];
+    }) : void 0) || [];
+    if (((ref9 = rule.dependencies) != null ? ref9 : []).join("$$") !== ruleDependencyConfigs.join("$$")) {
+      return false;
+    }
+    ref10 = obj.ruleDependencies;
+    for (m = 0, len2 = ref10.length; m < len2; m++) {
+      c = ref10[m];
+      f = c[0], (ref11 = c[1], mtime = ref11.mtime);
       currentMtime = +fs.statSync(f).mtime;
       if (currentMtime > mtime) {
         return false;
