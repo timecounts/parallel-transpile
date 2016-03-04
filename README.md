@@ -1,6 +1,8 @@
 Parallel Transpile
 ==================
 
+[![Build Status](https://travis-ci.org/timecounts/parallel-transpile.svg?branch=master)](https://travis-ci.org/timecounts/parallel-transpile)
+
 This npm module uses webpack loaders and all your CPUs to transpile
 source as quick as it can.
 
