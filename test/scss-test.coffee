@@ -93,23 +93,41 @@ describe 'SCSS', ->
         RULES.scss
       ]
 
-    before ->
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "NEWER"
-
-    before transpile
-      newer: true
-      rules: [
-        RULES.scss
-      ]
-
-
-    it 'foo.css should be ignored', ->
+    it 'compiles foo.css', ->
       expect(output("scss/foo.css", 'utf-8')).to.eql """
-        NEWER
+        .foo {
+          color: #f00; }
         """
 
     it 'compiles bar.css', ->
       expect(output("scss/bar.css", 'utf-8')).to.eql """
         .bar {
           color: #0f0; }
+        """
+
+    it 'then modifies bar.css', ->
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
+        """
+        .bar {
+          background-color: #00f;
+        }
+        """
+
+    it 'then compiles again', transpile
+      newer: true
+      rules: [
+        RULES.scss
+      ]
+
+
+    it 'foo.css should be unchanged', ->
+      expect(output("scss/foo.css", 'utf-8')).to.eql """
+        UNMODIFIED
+        """
+
+    it 'compiles bar.css', ->
+      expect(output("scss/bar.css", 'utf-8')).to.eql """
+        .bar {
+          background-color: #00f; }
         """
