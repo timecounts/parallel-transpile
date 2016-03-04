@@ -78,7 +78,7 @@ describe 'SCSS', ->
         }
         """
 
-    it 'then compiles again', transpile
+    it 'then we compile again', transpile
       newer: true
       rules: [
         RULES.scss
@@ -105,7 +105,7 @@ describe 'SCSS', ->
         $green: green;
         """
 
-    it 'then compiles again', transpile
+    it 'then we compile again', transpile
       newer: true
       rules: [
         RULES.scss
@@ -122,6 +122,23 @@ describe 'SCSS', ->
         .bar {
           background-color: green; }
         """
+
+    it 'then we delete foo.scss', ->
+      fs.unlinkSync "#{SCRATCHPAD_SOURCE}/scss/foo.scss"
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+
+    it 'then we compile again', transpile
+      newer: true
+      delete: true
+      rules: [
+        RULES.scss
+      ]
+
+    it 'deletes foo.css', ->
+      expect(getOutput("scss/foo.css", 'utf-8')).to.eql null
+
+    it 'leaves bar.css unmodified', ->
+      expect(getOutput("scss/bar.css", 'utf-8')).to.eql "UNMODIFIED"
 
   describe 'watch', ->
     before setupScratchpad

@@ -211,6 +211,12 @@ module.exports = (options, callback) ->
           watchQueue.add self
     watchRemove = (file) ->
       watchQueue.remove(file)
+      if options.delete
+        for stateFile, {dependencies} of options.state.files
+          [self, deps...] = Object.keys(dependencies)
+          if file is self
+            fs.unlink stateFile
+
     watcher = chokidar.watch options.source
     watcher.on 'ready', ->
       watcher.on 'add', watchChange
@@ -261,6 +267,7 @@ module.exports = (options, callback) ->
     return true
 
   queue = new Queue(options, true)
+  seen = []
   recurse = (path) ->
     files = fs.readdirSync(path)
     for file in files when !file.match(/^\.+$/)
@@ -279,6 +286,7 @@ module.exports = (options, callback) ->
             {inExt, outExt} = rule
             relativePath = filePath.substr(options.source.length)
             outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
+            seen.push outPath
             if upToDate(outPath, rule)
               shouldAdd = false
         queue.add(filePath) if shouldAdd
@@ -293,6 +301,12 @@ module.exports = (options, callback) ->
     else
       null
   queue.on 'empty', ->
+    if options.delete
+      all = Object.keys(options.state.files)
+      unseen = (file for file in all when file not in seen)
+      for file in unseen
+        debug "Deleting file with no source: #{file}"
+        fs.unlinkSync file
     debug "INITIAL BUILD COMPLETE"
     status = getStatus(false)
     options.initialBuildComplete?(status)
