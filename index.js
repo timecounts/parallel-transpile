@@ -149,7 +149,16 @@ Queue = (function(superClass) {
       }
       outPath = details.outPath;
       delete details.outPath;
-      details.loaders = task.rule.loaders;
+      details.loaders = task.rule.loaders.map(function(l) {
+        var loaderName, version;
+        loaderName = l.replace(/\?.*$/, "");
+        version = require(loaderName + "/package.json").version;
+        return [
+          l, {
+            version: version
+          }
+        ];
+      });
       this.options.setFileState(outPath, details);
     }
     i = this.inProgress.indexOf(path);
@@ -343,7 +352,7 @@ module.exports = function(options, callback) {
     return fs.writeFileSync(options.output + "/" + STATE_FILENAME, JSON.stringify(options.state));
   };
   upToDate = function(filename, rule) {
-    var file, mtime, obj, ref4, ref5, stat2;
+    var file, loaderConfigs, mtime, obj, ref4, ref5, stat2;
     obj = options.state.files[filename];
     if (!obj) {
       return false;
@@ -363,14 +372,17 @@ module.exports = function(options, callback) {
         return false;
       }
     }
-    if (rule.loaders.join("$$") !== ((ref5 = obj.loaders) != null ? ref5.join("$$") : void 0)) {
+    loaderConfigs = (ref5 = obj.loaders) != null ? ref5.map(function(c) {
+      return c[0];
+    }) : void 0;
+    if (rule.loaders.join("$$") !== (loaderConfigs != null ? loaderConfigs.join("$$") : void 0)) {
       return false;
     }
     return true;
   };
   queue = new Queue(options, true);
   recurse = function(path) {
-    var aRule, file, filePath, files, k, l, len1, len2, outPath, ref4, relativePath, rule, shouldAdd, stat;
+    var aRule, file, filePath, files, k, len1, len2, m, outPath, ref4, relativePath, rule, shouldAdd, stat;
     files = fs.readdirSync(path);
     for (k = 0, len1 = files.length; k < len1; k++) {
       file = files[k];
@@ -386,8 +398,8 @@ module.exports = function(options, callback) {
         if (options.newer) {
           rule = null;
           ref4 = options.rules;
-          for (l = 0, len2 = ref4.length; l < len2; l++) {
-            aRule = ref4[l];
+          for (m = 0, len2 = ref4.length; m < len2; m++) {
+            aRule = ref4[m];
             if (!(endsWith(filePath, aRule.inExt))) {
               continue;
             }

@@ -83,7 +83,10 @@ class Queue extends EventEmitter
         debug "[#{bucket.id}] Processed: #{path}"
       outPath = details.outPath
       delete details.outPath
-      details.loaders = task.rule.loaders
+      details.loaders = task.rule.loaders.map (l) ->
+        loaderName = l.replace /\?.*$/, ""
+        version = require("#{loaderName}/package.json").version
+        [l, {version: version}]
       @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
@@ -219,7 +222,8 @@ module.exports = (options, callback) ->
           fs.statSync(file)
       return false unless stat2
       return false if +stat2.mtime > mtime
-    if rule.loaders.join("$$") != obj.loaders?.join("$$")
+    loaderConfigs = obj.loaders?.map((c) -> c[0])
+    if rule.loaders.join("$$") != loaderConfigs?.join("$$")
       return false
     return true
 
