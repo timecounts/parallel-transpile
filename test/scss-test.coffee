@@ -133,3 +133,30 @@ describe 'SCSS', ->
         .bar {
           background-color: #0f0; }
         """
+
+    it 'then modifies _vars.css', ->
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD}/lib/scss/_vars.scss",
+        """
+        $red: red;
+        $green: green;
+        """
+
+    it 'then compiles again', transpile
+      newer: true
+      rules: [
+        RULES.scss
+      ]
+
+    it 'compiles foo.css', ->
+      expect(output("scss/foo.css", 'utf-8')).to.eql """
+        .foo {
+          color: red; }
+        """
+
+    it 'compiles bar.css', ->
+      expect(output("scss/bar.css", 'utf-8')).to.eql """
+        .bar {
+          background-color: green; }
+        """
