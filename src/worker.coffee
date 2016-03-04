@@ -113,8 +113,9 @@ process.on 'message', (m) ->
         loaderIndex: i
         loaders: webpackLoaders
         addDependency: addDependency = (file) ->
+          fileStat = fs.statSync Path.resolve(file)
           details.dependencies[Path.resolve(file)] =
-            mtime: +new Date()
+            mtime: +fileStat.mtime
         dependency: addDependency
         resolveSync: EnhancedResolve.sync
         resolve: EnhancedResolve

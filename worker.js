@@ -145,8 +145,10 @@ process.on('message', function(m) {
         loaderIndex: i,
         loaders: webpackLoaders,
         addDependency: addDependency = function(file) {
+          var fileStat;
+          fileStat = fs.statSync(Path.resolve(file));
           return details.dependencies[Path.resolve(file)] = {
-            mtime: +new Date()
+            mtime: +fileStat.mtime
           };
         },
         dependency: addDependency,
