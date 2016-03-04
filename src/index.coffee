@@ -83,7 +83,7 @@ class Queue extends EventEmitter
         debug "[#{bucket.id}] Processed: #{path}"
       outPath = details.outPath
       delete details.outPath
-      @options.setState outPath, details
+      @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
       throw new Error "This shouldn't be able to happen"
@@ -204,12 +204,13 @@ module.exports = (options, callback) ->
   catch
     state = {}
   options.state = state
-  options.setState = (filename, obj) ->
-    options.state[filename] = obj
+  options.state.files ?= {}
+  options.setFileState = (filename, obj) ->
+    options.state.files[filename] = obj
     fs.writeFileSync "#{options.output}/#{STATE_FILENAME}", JSON.stringify(options.state)
 
   upToDate = (filename) ->
-    obj = options.state[filename]
+    obj = options.state.files[filename]
     return false unless obj
     for file, {mtime} of obj.dependencies
       stat2 =

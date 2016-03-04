@@ -149,7 +149,7 @@ Queue = (function(superClass) {
       }
       outPath = details.outPath;
       delete details.outPath;
-      this.options.setState(outPath, details);
+      this.options.setFileState(outPath, details);
     }
     i = this.inProgress.indexOf(path);
     if (i === -1) {
@@ -257,7 +257,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var error1, errorOccurred, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, state, type, upToDate, watchQueue, watcher;
+  var base, error1, errorOccurred, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, state, type, upToDate, watchQueue, watcher;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -334,13 +334,16 @@ module.exports = function(options, callback) {
     state = {};
   }
   options.state = state;
-  options.setState = function(filename, obj) {
-    options.state[filename] = obj;
+  if ((base = options.state).files == null) {
+    base.files = {};
+  }
+  options.setFileState = function(filename, obj) {
+    options.state.files[filename] = obj;
     return fs.writeFileSync(options.output + "/" + STATE_FILENAME, JSON.stringify(options.state));
   };
   upToDate = function(filename) {
     var file, mtime, obj, ref4, stat2;
-    obj = options.state[filename];
+    obj = options.state.files[filename];
     if (!obj) {
       return false;
     }
