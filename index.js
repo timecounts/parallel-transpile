@@ -149,6 +149,7 @@ Queue = (function(superClass) {
       }
       outPath = details.outPath;
       delete details.outPath;
+      details.loaders = task.rule.loaders;
       this.options.setFileState(outPath, details);
     }
     i = this.inProgress.indexOf(path);
@@ -341,8 +342,8 @@ module.exports = function(options, callback) {
     options.state.files[filename] = obj;
     return fs.writeFileSync(options.output + "/" + STATE_FILENAME, JSON.stringify(options.state));
   };
-  upToDate = function(filename) {
-    var file, mtime, obj, ref4, stat2;
+  upToDate = function(filename, rule) {
+    var file, mtime, obj, ref4, ref5, stat2;
     obj = options.state.files[filename];
     if (!obj) {
       return false;
@@ -361,6 +362,9 @@ module.exports = function(options, callback) {
       if (+stat2.mtime > mtime) {
         return false;
       }
+    }
+    if (rule.loaders.join("$$") !== ((ref5 = obj.loaders) != null ? ref5.join("$$") : void 0)) {
+      return false;
     }
     return true;
   };
@@ -394,7 +398,7 @@ module.exports = function(options, callback) {
             inExt = rule.inExt, outExt = rule.outExt;
             relativePath = filePath.substr(options.source.length);
             outPath = Path.resolve(options.output + "/" + (utils.swapExtension(relativePath, inExt, outExt)));
-            if (upToDate(outPath)) {
+            if (upToDate(outPath, rule)) {
               shouldAdd = false;
             }
           }

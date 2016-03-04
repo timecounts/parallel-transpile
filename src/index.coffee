@@ -83,6 +83,7 @@ class Queue extends EventEmitter
         debug "[#{bucket.id}] Processed: #{path}"
       outPath = details.outPath
       delete details.outPath
+      details.loaders = task.rule.loaders
       @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
@@ -209,7 +210,7 @@ module.exports = (options, callback) ->
     options.state.files[filename] = obj
     fs.writeFileSync "#{options.output}/#{STATE_FILENAME}", JSON.stringify(options.state)
 
-  upToDate = (filename) ->
+  upToDate = (filename, rule) ->
     obj = options.state.files[filename]
     return false unless obj
     for file, {mtime} of obj.dependencies
@@ -218,6 +219,8 @@ module.exports = (options, callback) ->
           fs.statSync(file)
       return false unless stat2
       return false if +stat2.mtime > mtime
+    if rule.loaders.join("$$") != obj.loaders?.join("$$")
+      return false
     return true
 
   queue = new Queue(options, true)
@@ -239,7 +242,7 @@ module.exports = (options, callback) ->
             {inExt, outExt} = rule
             relativePath = filePath.substr(options.source.length)
             outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
-            if upToDate(outPath)
+            if upToDate(outPath, rule)
               shouldAdd = false
         queue.add(filePath) if shouldAdd
     return
