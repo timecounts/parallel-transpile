@@ -38,7 +38,7 @@ init = function(options) {
 };
 
 process.on('message', function(m) {
-  var _, absoluteOutPath, absolutePath, applyNext, baseName, details, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, obj, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, webpackLoaders;
+  var _, absoluteOutPath, absolutePath, applyNext, baseName, details, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, obj, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, stat, webpackLoaders;
   try {
     if (m.init) {
       return init(m.init);
@@ -102,6 +102,7 @@ process.on('message', function(m) {
     };
     absoluteOutPath = Path.resolve(outPath);
     absolutePath = Path.resolve(path);
+    stat = fs.statSync(absolutePath);
     inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath);
     outFile = Path.basename(outPath);
     prevFile = inFile;
@@ -110,7 +111,7 @@ process.on('message', function(m) {
       dependencies: (
         obj = {},
         obj["" + absolutePath] = {
-          mtime: +new Date()
+          mtime: +stat.mtime
         },
         obj
       )

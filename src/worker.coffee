@@ -77,6 +77,7 @@ process.on 'message', (m) ->
 
     absoluteOutPath = Path.resolve(outPath)
     absolutePath = Path.resolve(path)
+    stat = fs.statSync absolutePath
     inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath)
     outFile = Path.basename(outPath)
     prevFile = inFile
@@ -86,7 +87,7 @@ process.on 'message', (m) ->
       #mtime: +new Date
       dependencies: {
         "#{absolutePath}": {
-          mtime: +new Date()
+          mtime: +stat.mtime
         }
       }
 
