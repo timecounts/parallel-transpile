@@ -30,6 +30,8 @@ versionFromLoaderString = (l) ->
   loaderName = l.replace /\?.*$/, ""
   return require("#{loaderName}/package.json").version
 
+watcher = null
+
 class Bucket extends EventEmitter
   constructor: (@options = {}) ->
     @capacity = @options.bucketCapacity ? 3
@@ -81,6 +83,8 @@ class Queue extends EventEmitter
     else
       deps = Object.keys(details.dependencies)[1..]
       if deps.length
+        if watcher
+          deps.forEach (p) -> watcher.add(p)
         deps = deps.map (p) => Path.relative(@options.source, p)
         debug "[#{bucket.id}] Processed: #{path} (deps: #{deps})"
       else
@@ -193,11 +197,22 @@ module.exports = (options, callback) ->
 
   if options.watch
     watchQueue = new Queue(options)
+    watchChange = (file) ->
+      sourceWithSlash = options.source + "/"
+      if file.substr(0, sourceWithSlash.length) is sourceWithSlash
+        watchQueue.add(file)
+      # Look for anything that depends on us and add that to the queue
+      for stateFile, {dependencies} of options.state.files
+        [self, deps...] = Object.keys(dependencies)
+        if file in deps
+          watchQueue.add self
+    watchRemove = (file) ->
+      watchQueue.remove(file)
     watcher = chokidar.watch options.source
     watcher.on 'ready', ->
-      watcher.on 'add', watchQueue.add
-      watcher.on 'change', watchQueue.add
-      watcher.on 'unlink', watchQueue.remove
+      watcher.on 'add', watchChange
+      watcher.on 'change', watchChange
+      watcher.on 'unlink', watchRemove
 
   oldOnError = options.onError
   errorOccurred = false
