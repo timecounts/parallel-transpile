@@ -1,7 +1,9 @@
 .gitignore
 .npmignore
+.travis.yml
 build/
 src/
 *.map
 test/
 fixtures/
+npm-debug.log
