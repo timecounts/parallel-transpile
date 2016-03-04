@@ -2,13 +2,16 @@ fs = require 'fs'
 cluster = require 'cluster'
 utils = require './utils'
 debug = require('debug')('parallelTranspile')
+Path = require 'path'
+
+STATE_FILENAME = ".parallel-transpile.state"
 
 cluster.setupMaster
   exec: "#{__dirname}/worker"
   args: []
 
 if !cluster.isMaster
-  require './worker'
+  require "#{__dirname}/worker"
   return
 
 EventEmitter = require 'events'
@@ -23,6 +26,12 @@ error = (code, message) ->
 endsWith = (str, end) ->
   str.substr(str.length - end.length) is end
 
+versionFromLoaderString = (l) ->
+  loaderName = l.replace /\?.*$/, ""
+  return require("#{loaderName}/package.json").version
+
+watcher = null
+
 class Bucket extends EventEmitter
   constructor: (@options = {}) ->
     @capacity = @options.bucketCapacity ? 3
@@ -35,8 +44,8 @@ class Bucket extends EventEmitter
   receive: (message) =>
     task = @queue.shift()
     @perform()
-    if message is 'complete'
-      @emit 'complete', this, null, task
+    if message?.msg is 'complete'
+      @emit 'complete', this, null, task, message.details
     else
       # Must be an error
       @emit 'complete', this, message, task
@@ -66,13 +75,28 @@ class Queue extends EventEmitter
     bucket.destroy() for bucket in @buckets
     @buckets = null
 
-  complete: (bucket, err, task) =>
+  complete: (bucket, err, task, details = {}) =>
     {path} = task
     if err
       @options.onError?(err)
       debug "[#{bucket.id}] Failed: #{path}"
     else
-      debug "[#{bucket.id}] Processed: #{path}"
+      deps = Object.keys(details.dependencies)[1..]
+      if deps.length
+        if watcher
+          deps.forEach (p) -> watcher.add(p)
+        deps = deps.map (p) => Path.relative(@options.source, p)
+        debug "[#{bucket.id}] Processed: #{path} (deps: #{deps})"
+      else
+        debug "[#{bucket.id}] Processed: #{path}"
+      outPath = details.outPath
+      delete details.outPath
+      details.loaders = task.rule.loaders.map (l) ->
+        [l, {version: versionFromLoaderString(l)}]
+      details.ruleDependencies = (task.rule.dependencies || []).map (dep) ->
+        depStat = fs.statSync(dep)
+        return [dep, {mtime: +depStat.mtime}]
+      @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
       throw new Error "This shouldn't be able to happen"
@@ -141,6 +165,9 @@ module.exports = (options, callback) ->
   if !fs.existsSync(options.output) or !fs.statSync(options.output).isDirectory()
     return callback error(3, "Output option must be a directory")
 
+  options.output = Path.resolve(options.output)
+  options.source = Path.resolve(options.source)
+
   options.rules ?= []
   options.type = [options.type] if options.type and !Array.isArray(options.type)
   for type in options.type ? []
@@ -170,13 +197,32 @@ module.exports = (options, callback) ->
   options.parallel ||= os.cpus().length
   options.parallel = Math.min(options.parallel, options.maxParallel ? 16)
 
+
   if options.watch
     watchQueue = new Queue(options)
+    watchChange = (file) ->
+      sourceWithSlash = options.source + "/"
+      if file.substr(0, sourceWithSlash.length) is sourceWithSlash
+        watchQueue.add(file)
+      # Look for anything that depends on us and add that to the queue
+      for stateFile, {dependencies} of options.state.files
+        [self, deps...] = Object.keys(dependencies)
+        if file in deps
+          watchQueue.add self
+    watchRemove = (file) ->
+      watchQueue.remove(file)
+      if options.delete
+        for stateFile, {dependencies} of options.state.files
+          [self, deps...] = Object.keys(dependencies)
+          if file is self
+            try
+              fs.unlinkSync stateFile
+
     watcher = chokidar.watch options.source
     watcher.on 'ready', ->
-      watcher.on 'add', watchQueue.add
-      watcher.on 'change', watchQueue.add
-      watcher.on 'unlink', watchQueue.remove
+      watcher.on 'add', watchChange
+      watcher.on 'change', watchChange
+      watcher.on 'unlink', watchRemove
 
   oldOnError = options.onError
   errorOccurred = false
@@ -184,7 +230,51 @@ module.exports = (options, callback) ->
     errorOccurred = true
     oldOnError?.apply(this, arguments)
 
+  try
+    state = JSON.parse(fs.readFileSync("#{options.output}/#{STATE_FILENAME}"))
+  catch
+    state = {}
+  options.state = state
+  options.state.files ?= {}
+  options.setFileState = (filename, obj) ->
+    options.state.files[filename] = obj
+    fs.writeFileSync "#{options.output}/#{STATE_FILENAME}", JSON.stringify(options.state)
+
+  upToDate = (filename, rule) ->
+    obj = options.state.files[filename]
+    return false unless obj
+    for file, {mtime} of obj.dependencies
+      stat2 =
+        try
+          fs.statSync(file)
+      return false unless stat2
+      if +stat2.mtime > mtime
+        debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
+        return false
+    loaderConfigs = obj.loaders?.map((c) -> c[0])
+    if rule.loaders.join("$$") != loaderConfigs?.join("$$")
+      debug("Loaders for #{file} have changed")
+      return false
+    for c in obj.loaders
+      [l, {version}] = c
+      currentVersion = versionFromLoaderString(l)
+      if currentVersion != version
+        debug("Loader version for #{l} (#{file}) has changed (#{version} -> #{currentVersion})")
+        return false
+    ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
+    if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
+      debug("Rule dependencies for #{file} have changed")
+      return false
+    for c in obj.ruleDependencies
+      [f, {mtime}] = c
+      currentMtime = +fs.statSync(f).mtime
+      if currentMtime > mtime
+        debug("Dependency #{f} for #{file} has changed")
+        return false
+    return true
+
   queue = new Queue(options, true)
+  seen = []
   recurse = (path) ->
     files = fs.readdirSync(path)
     for file in files when !file.match(/^\.+$/)
@@ -202,26 +292,38 @@ module.exports = (options, callback) ->
           if rule
             {inExt, outExt} = rule
             relativePath = filePath.substr(options.source.length)
-            outPath = "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
-            stat2 =
-              try
-                fs.statSync(outPath)
-            if stat2 and stat2.mtime > stat.mtime
+            outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
+            seen.push outPath
+            if upToDate(outPath, rule)
               shouldAdd = false
         queue.add(filePath) if shouldAdd
     return
 
   recurse options.source
 
-  queue.on 'empty', ->
-    debug "INITIAL BUILD COMPLETE"
-    status = null
+  getStatus = (clear) ->
     if errorOccurred
-      status = new Error "An error occurred"
+      errorOccurred = false if clear
+      return new Error "An error occurred"
+    else
+      null
+  queue.on 'empty', ->
+    if options.delete
+      all = Object.keys(options.state.files)
+      unseen = (file for file in all when file not in seen)
+      for file in unseen
+        debug "Deleting file with no source: #{file}"
+        try
+          fs.unlinkSync file
+    debug "INITIAL BUILD COMPLETE"
+    status = getStatus(false)
     options.initialBuildComplete?(status)
     queue.destroy()
     queue = null
     if watchQueue?
+      errorOccurred = false
+      watchQueue.on 'empty', ->
+        options.watchBuildComplete?(getStatus(true))
       watchQueue.run()
     else
       # Finished

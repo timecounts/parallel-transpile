@@ -22,6 +22,7 @@ send = (message) ->
 init = (options) ->
   source = options.source.replace(/\/*$/, "/")
   output = options.output.replace(/\/+$/, "")
+  process.chdir(source)
 
 process.on 'message', (m) ->
   try
@@ -72,13 +73,24 @@ process.on 'message', (m) ->
           """
       fs.writeFileSync(outPath, src)
       fs.writeFileSync(mapPath, sourceMapString) if sourceMapString
-      send 'complete'
+      send {msg: 'complete', details: details}
 
     absoluteOutPath = Path.resolve(outPath)
     absolutePath = Path.resolve(path)
+    stat = fs.statSync absolutePath
     inFile = Path.relative(Path.dirname(absoluteOutPath), absolutePath)
     outFile = Path.basename(outPath)
     prevFile = inFile
+
+    details =
+      outPath: absoluteOutPath
+      #mtime: +new Date
+      dependencies: {
+        "#{absolutePath}": {
+          mtime: +stat.mtime
+        }
+      }
+
 
     applyNext = ->
       next = remainingLoaderModules.pop()
@@ -100,7 +112,15 @@ process.on 'message', (m) ->
         sourceMap: true
         loaderIndex: i
         loaders: webpackLoaders
-        addDependency: addDependency = (file) -> # NOOP
+        addDependency: addDependency = (file) ->
+          try
+            fileStat = fs.statSync Path.resolve(file)
+            details.dependencies[Path.resolve(file)] =
+              mtime: +fileStat.mtime
+          catch e
+            console.error "FAILED TO STAT DEPENDENCY '#{file}' of '#{inFile}'"
+            details.dependencies[Path.resolve(file)] =
+              mtime: 0
         dependency: addDependency
         resolveSync: EnhancedResolve.sync
         resolve: EnhancedResolve
