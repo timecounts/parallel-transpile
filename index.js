@@ -270,7 +270,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var base, error1, errorOccurred, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, state, type, upToDate, watchQueue, watcher;
+  var base, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, state, type, upToDate, watchQueue, watcher;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -434,19 +434,30 @@ module.exports = function(options, callback) {
     }
   };
   recurse(options.source);
+  getStatus = function(clear) {
+    if (errorOccurred) {
+      if (clear) {
+        errorOccurred = false;
+      }
+      return new Error("An error occurred");
+    } else {
+      return null;
+    }
+  };
   queue.on('empty', function() {
     var status;
     debug("INITIAL BUILD COMPLETE");
-    status = null;
-    if (errorOccurred) {
-      status = new Error("An error occurred");
-    }
+    status = getStatus(false);
     if (typeof options.initialBuildComplete === "function") {
       options.initialBuildComplete(status);
     }
     queue.destroy();
     queue = null;
     if (watchQueue != null) {
+      errorOccurred = false;
+      watchQueue.on('empty', function() {
+        return typeof options.watchBuildComplete === "function" ? options.watchBuildComplete(getStatus(true)) : void 0;
+      });
       return watchQueue.run();
     } else {
       return callback(status);

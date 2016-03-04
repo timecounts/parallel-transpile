@@ -260,15 +260,22 @@ module.exports = (options, callback) ->
 
   recurse options.source
 
+  getStatus = (clear) ->
+    if errorOccurred
+      errorOccurred = false if clear
+      return new Error "An error occurred"
+    else
+      null
   queue.on 'empty', ->
     debug "INITIAL BUILD COMPLETE"
-    status = null
-    if errorOccurred
-      status = new Error "An error occurred"
+    status = getStatus(false)
     options.initialBuildComplete?(status)
     queue.destroy()
     queue = null
     if watchQueue?
+      errorOccurred = false
+      watchQueue.on 'empty', ->
+        options.watchBuildComplete?(getStatus(true))
       watchQueue.run()
     else
       # Finished
