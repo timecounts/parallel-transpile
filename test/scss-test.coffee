@@ -107,10 +107,12 @@ describe 'SCSS', ->
 
     it 'then modifies bar.css', ->
       fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
+      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
       fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
         """
+        @import "vars";
         .bar {
-          background-color: #00f;
+          background-color: $green;
         }
         """
 
@@ -129,5 +131,5 @@ describe 'SCSS', ->
     it 'compiles bar.css', ->
       expect(output("scss/bar.css", 'utf-8')).to.eql """
         .bar {
-          background-color: #00f; }
+          background-color: #0f0; }
         """
