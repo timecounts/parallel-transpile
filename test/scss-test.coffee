@@ -43,7 +43,7 @@ output = (path, options) ->
     return null
 
 scssOptions =
-  includePaths: ["#{FIXTURES}/lib/scss"]
+  includePaths: ["#{SCRATCHPAD}/lib/scss"]
   indentedSyntax: false
 
 RULES =
