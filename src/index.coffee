@@ -26,6 +26,10 @@ error = (code, message) ->
 endsWith = (str, end) ->
   str.substr(str.length - end.length) is end
 
+versionFromLoaderString = (l) ->
+  loaderName = l.replace /\?.*$/, ""
+  return require("#{loaderName}/package.json").version
+
 class Bucket extends EventEmitter
   constructor: (@options = {}) ->
     @capacity = @options.bucketCapacity ? 3
@@ -84,9 +88,7 @@ class Queue extends EventEmitter
       outPath = details.outPath
       delete details.outPath
       details.loaders = task.rule.loaders.map (l) ->
-        loaderName = l.replace /\?.*$/, ""
-        version = require("#{loaderName}/package.json").version
-        [l, {version: version}]
+        [l, {version: versionFromLoaderString(l)}]
       @options.setFileState outPath, details
     i = @inProgress.indexOf(path)
     if i is -1
@@ -225,6 +227,11 @@ module.exports = (options, callback) ->
     loaderConfigs = obj.loaders?.map((c) -> c[0])
     if rule.loaders.join("$$") != loaderConfigs?.join("$$")
       return false
+    for c in obj.loaders
+      [l, {version}] = c
+      currentVersion = versionFromLoaderString(l)
+      if currentVersion != version
+        return false
     return true
 
   queue = new Queue(options, true)
