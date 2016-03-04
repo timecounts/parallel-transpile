@@ -8,6 +8,7 @@
   },
   "scripts": {
     "test": "mocha test/**/*-test.*",
+    "test:watch": "mocha -w test/**/*-test.*",
     "prepublish": "coffee -cbmo . src",
     "watch": "coffee -cwbmo . src"
   },
