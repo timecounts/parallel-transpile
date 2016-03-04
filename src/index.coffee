@@ -215,7 +215,8 @@ module.exports = (options, callback) ->
         for stateFile, {dependencies} of options.state.files
           [self, deps...] = Object.keys(dependencies)
           if file is self
-            fs.unlink stateFile
+            try
+              fs.unlinkSync stateFile
 
     watcher = chokidar.watch options.source
     watcher.on 'ready', ->
@@ -312,7 +313,8 @@ module.exports = (options, callback) ->
       unseen = (file for file in all when file not in seen)
       for file in unseen
         debug "Deleting file with no source: #{file}"
-        fs.unlinkSync file
+        try
+          fs.unlinkSync file
     debug "INITIAL BUILD COMPLETE"
     status = getStatus(false)
     options.initialBuildComplete?(status)

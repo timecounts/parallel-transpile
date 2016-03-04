@@ -375,7 +375,9 @@ module.exports = function(options, callback) {
           dependencies = ref4[stateFile].dependencies;
           ref5 = Object.keys(dependencies), self = ref5[0], deps = 2 <= ref5.length ? slice.call(ref5, 1) : [];
           if (file === self) {
-            results.push(fs.unlink(stateFile));
+            try {
+              results.push(fs.unlinkSync(stateFile));
+            } catch (undefined) {}
           } else {
             results.push(void 0);
           }
@@ -539,7 +541,9 @@ module.exports = function(options, callback) {
       for (k = 0, len1 = unseen.length; k < len1; k++) {
         file = unseen[k];
         debug("Deleting file with no source: " + file);
-        fs.unlinkSync(file);
+        try {
+          fs.unlinkSync(file);
+        } catch (undefined) {}
       }
     }
     debug("INITIAL BUILD COMPLETE");
