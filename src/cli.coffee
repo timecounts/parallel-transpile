@@ -20,6 +20,7 @@ usage = ->
       -t, --type          add a type to be converted, see below
                             (can be called multiple times)
       -n, --newer         only build files newer than destination files
+      -d, --delete        delete files that no longer have a source
 
     Types
 
@@ -48,6 +49,7 @@ minimistOptions =
     "w": "watch"
     "t": "type"
     "n": "newer"
+    "d": "delete"
 
   string: [
     "output"
@@ -59,6 +61,7 @@ minimistOptions =
   boolean: [
     "watch"
     "newer"
+    "delete"
   ]
 
   multiple: [
