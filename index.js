@@ -378,6 +378,7 @@ module.exports = function(options, callback) {
           dependencies = ref4[stateFile].dependencies;
           ref5 = Object.keys(dependencies), self = ref5[0], deps = 2 <= ref5.length ? slice.call(ref5, 1) : [];
           if (file === self) {
+            options.setFileState(stateFile, null);
             try {
               results.push(fs.unlinkSync(stateFile));
             } catch (undefined) {}
@@ -411,7 +412,11 @@ module.exports = function(options, callback) {
     base.files = {};
   }
   options.setFileState = function(filename, obj) {
-    options.state.files[filename] = obj;
+    if (!obj) {
+      delete options.state.files[filename];
+    } else {
+      options.state.files[filename] = obj;
+    }
     return fs.writeFileSync(options.output + "/" + STATE_FILENAME, JSON.stringify(options.state));
   };
   upToDate = function(filename, rule) {
@@ -544,6 +549,7 @@ module.exports = function(options, callback) {
       for (k = 0, len1 = unseen.length; k < len1; k++) {
         file = unseen[k];
         debug("Deleting file with no source: " + file);
+        options.setFileState(file, null);
         try {
           fs.unlinkSync(file);
         } catch (undefined) {}

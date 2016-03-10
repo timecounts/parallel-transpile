@@ -218,6 +218,7 @@ module.exports = (options, callback) ->
         for stateFile, {dependencies} of options.state.files
           [self, deps...] = Object.keys(dependencies)
           if file is self
+            options.setFileState(stateFile, null)
             try
               fs.unlinkSync stateFile
 
@@ -240,8 +241,12 @@ module.exports = (options, callback) ->
   options.state = state
   options.state.files ?= {}
   options.setFileState = (filename, obj) ->
-    options.state.files[filename] = obj
-    fs.writeFileSync "#{options.output}/#{STATE_FILENAME}", JSON.stringify(options.state)
+    if !obj
+      delete options.state.files[filename]
+    else
+      options.state.files[filename] = obj
+    fs.writeFileSync "#{options.output}/#{STATE_FILENAME}",
+      JSON.stringify(options.state)
 
   upToDate = (filename, rule) ->
     obj = options.state.files[filename]
@@ -316,6 +321,7 @@ module.exports = (options, callback) ->
       unseen = (file for file in all when file not in seen)
       for file in unseen
         debug "Deleting file with no source: #{file}"
+        options.setFileState(file, null)
         try
           fs.unlinkSync file
     debug "INITIAL BUILD COMPLETE"
