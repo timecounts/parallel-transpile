@@ -39,9 +39,10 @@ setupTranspiler = (_options) -> (done) ->
     console.log "Transpiler exited"
   @transpiler.buildNumber = 0
 
-teardownTranspiler = ->
+teardownTranspiler = (done) ->
   @transpiler?.kill()
   delete @transpiler
+  setTimeout done, 100 # Ugly hack to give children sufficient time to kill their workers
 
 transpileWait = (fn) -> (done) ->
   counter = @transpiler.buildNumber
