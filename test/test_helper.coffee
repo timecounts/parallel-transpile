@@ -1,7 +1,8 @@
-FIXTURES = "#{__dirname}/../fixtures/"
-SCRATCHPAD = "#{__dirname}/scratchpad/"
+FIXTURES = "#{__dirname}/../fixtures"
+SCRATCHPAD = "#{__dirname}/scratchpad"
 SCRATCHPAD_SOURCE = "#{SCRATCHPAD}/src"
 SCRATCHPAD_OUTPUT = "#{SCRATCHPAD}/build"
+STATE_FILENAME = ".parallel-transpile.state"
 
 fs = require 'fs'
 childProcess = require 'child_process'
@@ -62,6 +63,13 @@ getOutput = (path, options) ->
   catch e
     return null
 
+getState = ->
+  jsonString = getOutput(STATE_FILENAME, 'utf-8')
+  try
+    return JSON.parse(jsonString)
+  catch e
+    return null
+
 makeOptions = (opts...) ->
   Object.assign {
     output: "#{SCRATCHPAD_OUTPUT}",
@@ -80,4 +88,5 @@ module.exports = {
   teardownTranspiler
   transpileWait
   getOutput
+  getState
 }

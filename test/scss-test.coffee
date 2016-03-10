@@ -10,6 +10,7 @@
   teardownTranspiler
   transpileWait
   getOutput
+  getState
 } = require './test_helper'
 fs = require 'fs'
 
@@ -137,8 +138,15 @@ describe 'SCSS', ->
     it 'deletes foo.css', ->
       expect(getOutput("scss/foo.css", 'utf-8')).to.eql null
 
+    it 'doesn\'t remember foo.css', ->
+      expect(getState().files).not.to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/foo.css")
+
     it 'leaves bar.css unmodified', ->
       expect(getOutput("scss/bar.css", 'utf-8')).to.eql "UNMODIFIED"
+
+    it 'still remembers bar.css', ->
+      expect(getState().files).to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/bar.css")
+
 
   describe 'watch', ->
     before setupScratchpad
