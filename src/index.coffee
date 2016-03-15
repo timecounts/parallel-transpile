@@ -3,6 +3,7 @@ cluster = require 'cluster'
 utils = require './utils'
 debug = require('debug')('parallelTranspile')
 Path = require 'path'
+checksum = require 'checksum'
 
 STATE_FILENAME = ".parallel-transpile.state"
 
@@ -80,9 +81,19 @@ class Queue extends EventEmitter
 
   complete: (bucket, err, task, details = {}) =>
     {path} = task
+    next = =>
+      i = @inProgress.indexOf(path)
+      if i is -1
+        throw new Error "This shouldn't be able to happen"
+      @inProgress.splice(i, 1)
+      @processNext()
+      if @inProgress.length is 0
+        @emit 'empty'
+        @destroy() if @oneshot
     if err
       @options.onError?(err)
       debug "[#{bucket.id}] Failed: #{path}"
+      next()
     else
       deps = Object.keys(details.dependencies)[1..]
       if deps.length
@@ -96,18 +107,26 @@ class Queue extends EventEmitter
       delete details.outPath
       details.loaders = task.rule.loaders.map (l) ->
         [l, {version: versionFromLoaderString(l)}]
-      details.ruleDependencies = (task.rule.dependencies || []).map (dep) ->
-        depStat = fs.statSync(dep)
-        return [dep, {mtime: +depStat.mtime}]
-      @options.setFileState outPath, details
-    i = @inProgress.indexOf(path)
-    if i is -1
-      throw new Error "This shouldn't be able to happen"
-    @inProgress.splice(i, 1)
-    @processNext()
-    if @inProgress.length is 0
-      @emit 'empty'
-      @destroy() if @oneshot
+      initialDeps = (task.rule.dependencies || [])
+      getStats = (dep, done) ->
+        details = {}
+        async.parallel
+          getMtime: (done) ->
+            fs.stat dep, (err, depStat) ->
+              return done err if err
+              details.mtime = +depStat.mtime
+              done()
+          getChecksum: (done) ->
+            checksum dep, (err, csum) ->
+              return done err if err
+              details.checksum = csum
+              done()
+        , (err) ->
+          done [dep, details]
+      async.map initialDeps, getStats, (err, deps) =>
+        details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
+        @options.setFileState outPath, details
+        next()
     return
 
   run: ->

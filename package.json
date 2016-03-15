@@ -38,6 +38,7 @@
   },
   "homepage": "https://github.com/timecounts/parallel-transpile",
   "dependencies": {
+    "checksum": "0.1.1",
     "chokidar": "^1.0.1",
     "debug": "^2.2.0",
     "enhanced-resolve": "^0.9.1",
