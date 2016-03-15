@@ -4,6 +4,7 @@ utils = require './utils'
 debug = require('debug')('parallelTranspile')
 Path = require 'path'
 checksum = require 'checksum'
+async = require 'async'
 
 STATE_FILENAME = ".parallel-transpile.state"
 
@@ -267,38 +268,38 @@ module.exports = (options, callback) ->
     fs.writeFileSync "#{options.output}/#{STATE_FILENAME}",
       JSON.stringify(options.state)
 
-  upToDate = (filename, rule) ->
+  upToDate = (filename, rule, done) ->
     obj = options.state.files[filename]
-    return false unless obj
-    for file, {mtime} of obj.dependencies
+    return done false unless obj
+    for file, {mtime, checksum} of obj.dependencies
       stat2 =
         try
           fs.statSync(file)
-      return false unless stat2
+      return done false unless stat2
       if +stat2.mtime > mtime
         debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
-        return false
+        return done false
     loaderConfigs = obj.loaders?.map((c) -> c[0])
     if rule.loaders.join("$$") != loaderConfigs?.join("$$")
       debug("Loaders for #{file} have changed")
-      return false
+      return done false
     for c in obj.loaders
       [l, {version}] = c
       currentVersion = versionFromLoaderString(l)
       if currentVersion != version
         debug("Loader version for #{l} (#{file}) has changed (#{version} -> #{currentVersion})")
-        return false
+        return done false
     ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
     if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
       debug("Rule dependencies for #{file} have changed")
-      return false
+      return done false
     for c in obj.ruleDependencies
       [f, {mtime}] = c
       currentMtime = +fs.statSync(f).mtime
       if currentMtime > mtime
         debug("Dependency #{f} for #{file} has changed")
-        return false
-    return true
+        return done false
+    return done true
 
   queue = new Queue(options, true)
   seen = []
@@ -310,7 +311,7 @@ module.exports = (options, callback) ->
       if stat.isDirectory()
         recurse(filePath)
       else if stat.isFile()
-        shouldAdd = true
+        addToQueue = => queue.add(filePath)
         if options.newer
           rule = null
           for aRule in options.rules when endsWith(filePath, aRule.inExt)
@@ -321,9 +322,13 @@ module.exports = (options, callback) ->
             relativePath = filePath.substr(options.source.length)
             outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
             seen.push outPath
-            if upToDate(outPath, rule)
-              shouldAdd = false
-        queue.add(filePath) if shouldAdd
+            upToDate outPath, rule, (isUpToDate) ->
+              if !isUpToDate
+                addToQueue()
+          else
+            addToQueue()
+        else
+          addToQueue()
     return
 
   recurse options.source
