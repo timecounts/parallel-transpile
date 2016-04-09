@@ -64,6 +64,13 @@ getOutput = (path, options) ->
   catch e
     return null
 
+getFileStats = (path) ->
+  try
+    ret = fs.statSync("#{SCRATCHPAD_OUTPUT}/#{path}")
+    return ret
+  catch e
+    return null
+
 getState = ->
   jsonString = getOutput(STATE_FILENAME, 'utf-8')
   try
@@ -90,4 +97,5 @@ module.exports = {
   transpileWait
   getOutput
   getState
+  getFileStats
 }
