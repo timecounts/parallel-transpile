@@ -284,6 +284,9 @@ Queue = (function(superClass) {
     if (this.paused) {
       return;
     }
+    if (!this.buckets) {
+      return;
+    }
     if (!this.queue.length) {
       return;
     }

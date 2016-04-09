@@ -164,6 +164,7 @@ class Queue extends EventEmitter
 
   processNext: ->
     return if @paused
+    return unless @buckets # kicked it
     return unless @queue.length
     bestBucket = null
     bestBucketScore = 0
