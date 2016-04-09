@@ -118,15 +118,18 @@ class Queue extends EventEmitter
               details.mtime = +depStat.mtime
               done()
           getChecksum: (done) ->
-            checksum dep, (err, csum) ->
+            checksum.file dep, (err, csum) ->
               return done err if err
               details.checksum = csum
               done()
         , (err) ->
           done [dep, details]
-      async.map initialDeps, getStats, (err, deps) =>
-        details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
-        @options.setFileState outPath, details
+      if initialDeps.length
+        async.map initialDeps, getStats, (err, deps) =>
+          details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
+          @options.setFileState outPath, details
+          next()
+      else
         next()
     return
 
