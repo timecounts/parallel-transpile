@@ -110,20 +110,20 @@ class Queue extends EventEmitter
         [l, {version: versionFromLoaderString(l)}]
       initialDeps = (task.rule.dependencies || [])
       getStats = (dep, done) ->
-        details = {}
+        subDetails = {}
         async.parallel
           getMtime: (done) ->
             fs.stat dep, (err, depStat) ->
               return done err if err
-              details.mtime = +depStat.mtime
+              subDetails.mtime = +depStat.mtime
               done()
           getChecksum: (done) ->
             checksum.file dep, (err, csum) ->
               return done err if err
-              details.checksum = csum
+              subDetails.checksum = csum
               done()
         , (err) ->
-          done [dep, details]
+          done err, [dep, subDetails]
       if initialDeps.length
         async.map initialDeps, getStats, (err, deps) =>
           details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
