@@ -271,6 +271,7 @@ module.exports = (options, callback) ->
   try
     state = JSON.parse(fs.readFileSync("#{options.output}/#{STATE_FILENAME}"))
   catch
+    debug("WARNING: no statefile! Starting from scratch")
     state = {}
   options.state = state
   options.state.files ?= {}
