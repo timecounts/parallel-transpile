@@ -287,8 +287,10 @@ module.exports = (options, callback) ->
         debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
         return done false
     loaderConfigs = obj.loaders?.map((c) -> c[0])
-    if rule.loaders.join("$$") != loaderConfigs?.join("$$")
-      debug("Loaders for #{filename} have changed")
+    oldLoaders = loaderConfigs?.join("$$")
+    newLoaders = rule.loaders.join("$$")
+    if oldLoaders != newLoaders
+      debug("Loaders for #{filename} have changed (#{oldLoaders} -> #{newLoaders})")
       return done false
     for c in obj.loaders
       [l, {version}] = c
