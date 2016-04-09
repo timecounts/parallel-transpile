@@ -5,6 +5,7 @@ debug = require('debug')('parallelTranspile')
 Path = require 'path'
 Checksum = require 'checksum'
 async = require 'async'
+VERSION = require("#{__dirname}/package.json").version
 
 STATE_FILENAME = ".parallel-transpile.state"
 
@@ -268,11 +269,20 @@ module.exports = (options, callback) ->
     errorOccurred = true
     oldOnError?.apply(this, arguments)
 
+  state = null
   try
     state = JSON.parse(fs.readFileSync("#{options.output}/#{STATE_FILENAME}"))
+    if state.version isnt VERSION
+      # Start from scratch on version update
+      console.log "STARTING FROM SCRATCH"
+      debug("WARNING: version changed from #{state.version} -> #{VERSION}. Starting from scratch")
+      state = null
   catch
     debug("WARNING: no statefile! Starting from scratch")
-    state = {}
+    state = null
+
+  state ?=
+    version: VERSION
   options.state = state
   options.state.files ?= {}
   options.setFileState = (filename, obj) ->
