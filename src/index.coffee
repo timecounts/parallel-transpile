@@ -123,12 +123,12 @@ class Queue extends EventEmitter
               done()
         , (err) ->
           done err, [dep, subDetails]
-      if initialDeps.length
-        async.map initialDeps, getStats, (err, deps) =>
-          details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
-          @options.setFileState outPath, details
-          next()
-      else
+      async.map initialDeps, getStats, (err, deps) =>
+        if err
+          console.error err
+          return next()
+        details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
+        @options.setFileState outPath, details
         next()
     return
 

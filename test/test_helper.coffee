@@ -26,7 +26,10 @@ setupScratchpad = ->
 
 transpile = (_options) -> (done) ->
   options = makeOptions _options
-  parallelTranspile options, done
+  # Add a delay to ensure mtimes change
+  setTimeout ->
+    parallelTranspile options, done
+  , 1000
 
 setupTranspiler = (_options) -> (done) ->
   options = makeOptions _options,
@@ -46,7 +49,7 @@ teardownTranspiler = (done) ->
 
 transpileWait = (fn) -> (done) ->
   counter = @transpiler.buildNumber
-  fn()
+  fn.call(this)
   check = =>
     if !@transpiler || @transpiler.buildNumber > counter
       done() if @transpiler # On fail, @transpiler will be cleaned up, but we still need to clearInterval

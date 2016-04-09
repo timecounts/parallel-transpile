@@ -11,6 +11,7 @@
   transpileWait
   getOutput
   getState
+  getFileStats
 } = require './test_helper'
 fs = require 'fs'
 
@@ -69,8 +70,8 @@ describe 'SCSS', ->
         """
 
     it 'then modifies bar.css', ->
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      @fooMtime = getFileStats("scss/foo.css").mtime
+      @barMtime = getFileStats("scss/bar.css").mtime
       fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
         """
         @import "vars";
@@ -87,9 +88,7 @@ describe 'SCSS', ->
 
 
     it 'foo.css should be unchanged', ->
-      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
-        UNMODIFIED
-        """
+      expect(getFileStats("scss/foo.css").mtime).to.eql @fooMtime
 
     it 'compiles bar.css', ->
       expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
@@ -98,8 +97,8 @@ describe 'SCSS', ->
         """
 
     it 'then modifies _vars.css', ->
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      @fooMtime = getFileStats("scss/foo.css").mtime
+      @barMtime = getFileStats("scss/bar.css").mtime
       fs.writeFileSync "#{SCRATCHPAD}/lib/scss/_vars.scss",
         """
         $red: red;
@@ -126,7 +125,7 @@ describe 'SCSS', ->
 
     it 'then we delete foo.scss', ->
       fs.unlinkSync "#{SCRATCHPAD_SOURCE}/scss/foo.scss"
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      @barMtime = getFileStats("scss/bar.css").mtime
 
     it 'then we compile again', transpile
       newer: true
@@ -142,7 +141,7 @@ describe 'SCSS', ->
       expect(getState().files).not.to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/foo.css")
 
     it 'leaves bar.css unmodified', ->
-      expect(getOutput("scss/bar.css", 'utf-8')).to.eql "UNMODIFIED"
+      expect(getFileStats("scss/bar.css").mtime).to.eql @barMtime
 
     it 'still remembers bar.css', ->
       expect(getState().files).to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/bar.css")
@@ -171,8 +170,8 @@ describe 'SCSS', ->
         """
 
     it 'then modifies bar.css and waits for transpile', transpileWait ->
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      @fooMtime = getFileStats("scss/foo.css").mtime
+      @barMtime = getFileStats("scss/bar.css").mtime
       fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
         """
         @import "vars";
@@ -182,9 +181,7 @@ describe 'SCSS', ->
         """
 
     it 'foo.css should be unchanged', ->
-      expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
-        UNMODIFIED
-        """
+      expect(getFileStats("scss/foo.css").mtime).to.eql @fooMtime
 
     it 'compiles bar.css', ->
       expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
@@ -193,8 +190,8 @@ describe 'SCSS', ->
         """
 
     it 'then modifies _vars.css and waits for transpile', transpileWait ->
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/foo.css", "UNMODIFIED"
-      fs.writeFileSync "#{SCRATCHPAD_OUTPUT}/scss/bar.css", "UNMODIFIED"
+      @fooMtime = getFileStats("scss/foo.css").mtime
+      @barMtime = getFileStats("scss/bar.css").mtime
       fs.writeFileSync "#{SCRATCHPAD}/lib/scss/_vars.scss",
         """
         $red: red;
