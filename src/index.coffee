@@ -338,8 +338,10 @@ module.exports = (options, callback) ->
         return done false
       for c in obj.ruleDependencies
         [f, {mtime}] = c
-        currentMtime = +fs.statSync(f).mtime
-        if currentMtime > mtime
+        currentMtime =
+          try
+            +fs.statSync(f).mtime
+        if !currentMtime || currentMtime > mtime
           debug("Dependency #{f} for #{filename} has changed")
           return done false
       return done true

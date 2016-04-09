@@ -556,8 +556,12 @@ module.exports = function(options, callback) {
         for (m = 0, len2 = ref9.length; m < len2; m++) {
           c = ref9[m];
           f = c[0], (ref10 = c[1], mtime = ref10.mtime);
-          currentMtime = +fs.statSync(f).mtime;
-          if (currentMtime > mtime) {
+          currentMtime = (function() {
+            try {
+              return +fs.statSync(f).mtime;
+            } catch (undefined) {}
+          })();
+          if (!currentMtime || currentMtime > mtime) {
             debug("Dependency " + f + " for " + filename + " has changed");
             return done(false);
           }
