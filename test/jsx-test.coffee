@@ -64,6 +64,28 @@ describe 'JSX', ->
       expect(getOutput("jsx/bar.js", 'utf-8')).to.match /bar = null/
       expect(getOutput("jsx/bar.js", 'utf-8')).to.match /exports.default/
 
+    it 'then touches bar.js', ->
+      @fooMtime = getFileStats("jsx/foo.js").mtime
+      @barMtime = getFileStats("jsx/bar.js").mtime
+      fs.writeFileSync "#{SCRATCHPAD_SOURCE}/jsx/bar.jsx",
+        """
+        const bar = null;
+        export default bar;
+        """
+
+    it 'then compiles again', transpile
+      newer: true
+      rules: [
+        RULES.jsx
+      ]
+
+
+    it 'foo.js should be unchanged', ->
+      expect(getFileStats("jsx/foo.js").mtime).to.eql @fooMtime
+
+    it 'bar.js should be unchanged', ->
+      expect(getFileStats("jsx/bar.js").mtime).to.eql @barMtime
+
     it 'then modifies babelrc', ->
       @fooMtime = getFileStats("jsx/foo.js").mtime
       @barMtime = getFileStats("jsx/bar.js").mtime

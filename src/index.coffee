@@ -73,6 +73,7 @@ class Queue extends EventEmitter
     @paused = true
     @queue = []
     @inProgress = []
+    @delayEmptyCount = 0
 
   destroy: =>
     return unless @buckets
@@ -88,9 +89,7 @@ class Queue extends EventEmitter
         throw new Error "This shouldn't be able to happen"
       @inProgress.splice(i, 1)
       @processNext()
-      if @inProgress.length is 0
-        @emit 'empty'
-        @destroy() if @oneshot
+      @checkEmpty()
     if err
       @options.onError?(err)
       debug "[#{bucket.id}] Failed: #{path}"
@@ -142,7 +141,7 @@ class Queue extends EventEmitter
     process.on 'exit', @destroy
     delete @paused
     @processNext()
-    @emit 'empty' unless @inProgress.length > 0
+    @checkEmpty()
     return this
 
   rule: (path) ->
@@ -179,6 +178,18 @@ class Queue extends EventEmitter
     @inProgress.push availablePath
     bestBucket.add({path: availablePath, rule: @rule(availablePath)})
     @processNext()
+
+  delayEmpty: ->
+    @delayEmptyCount++
+    return =>
+      @delayEmptyCount--
+      @checkEmpty()
+
+  checkEmpty: ->
+    if @delayEmptyCount == 0 && @inProgress.length == 0
+      @emit 'empty'
+      @destroy() if @oneshot
+    return
 
 module.exports = (options, callback) ->
 
@@ -276,45 +287,64 @@ module.exports = (options, callback) ->
     unless obj
       debug("#{filename} not known")
       return done false
-    for file, {mtime, checksum} of obj.dependencies
+    checkDependency = (file, done) ->
+      debug("Checking dependency #{file}")
+      {mtime, checksum} = obj.dependencies[file]
       stat2 =
         try
           fs.statSync(file)
       unless stat2
         debug("#{file} doesn't exist")
-        return done false
+        return done new Error("NOEXIST")
       if +stat2.mtime > mtime
-        debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
+        debug("#{file} mtime has changed (#{mtime} -> #{+stat2.mtime}), checking checksum")
+        return Checksum.file file, (err, csum) ->
+          if csum is checksum
+            return done()
+          else
+            debug("#{file} checksums differ")
+            return done new Error("CHANGED")
+      else
+        return done()
+    async.map Object.keys(obj.dependencies), checkDependency, (err) =>
+      if err
         return done false
-    loaderConfigs = obj.loaders?.map((c) -> c[0])
-    oldLoaders = loaderConfigs?.join("$$")
-    newLoaders = rule.loaders.join("$$")
-    if oldLoaders != newLoaders
-      debug("Loaders for #{filename} have changed (#{oldLoaders} -> #{newLoaders})")
-      return done false
-    for c in obj.loaders
-      [l, {version}] = c
-      currentVersion = versionFromLoaderString(l)
-      if currentVersion != version
-        debug("Loader version for #{l} (#{filename}) has changed (#{version} -> #{currentVersion})")
+      loaderConfigs = obj.loaders?.map((c) -> c[0])
+      oldLoaders = loaderConfigs?.join("$$")
+      newLoaders = rule.loaders.join("$$")
+      if oldLoaders != newLoaders
+        debug("Loaders for #{filename} have changed (#{oldLoaders} -> #{newLoaders})")
         return done false
-    ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
-    if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
-      debug("Rule dependencies for #{filename} have changed")
-      return done false
-    for c in obj.ruleDependencies
-      [f, {mtime}] = c
-      currentMtime = +fs.statSync(f).mtime
-      if currentMtime > mtime
-        debug("Dependency #{f} for #{filename} has changed")
+      for c in obj.loaders
+        [l, {version}] = c
+        currentVersion = versionFromLoaderString(l)
+        if currentVersion != version
+          debug("Loader version for #{l} (#{filename}) has changed (#{version} -> #{currentVersion})")
+          return done false
+      ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
+      if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
+        debug("Rule dependencies for #{filename} have changed")
         return done false
-    return done true
+      for c in obj.ruleDependencies
+        [f, {mtime}] = c
+        currentMtime = +fs.statSync(f).mtime
+        if currentMtime > mtime
+          debug("Dependency #{f} for #{filename} has changed")
+          return done false
+      return done true
 
   queue = new Queue(options, true)
+
+  delayQueueEmptyForCallback = (cb) ->
+    release = queue.delayEmpty()
+    return (args...) ->
+      cb(args...)
+      release()
+
   seen = []
   recurse = (path) ->
     files = fs.readdirSync(path)
-    for file in files when !file.match(/^\.+$/)
+    for file in files when !file.match(/^\.+$/) then do (file) ->
       filePath = "#{path}/#{file}"
       stat = fs.statSync(filePath)
       if stat.isDirectory()
@@ -331,7 +361,7 @@ module.exports = (options, callback) ->
             relativePath = filePath.substr(options.source.length)
             outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
             seen.push outPath
-            upToDate outPath, rule, (isUpToDate) ->
+            upToDate outPath, rule, delayQueueEmptyForCallback (isUpToDate) ->
               if !isUpToDate
                 addToQueue()
           else
