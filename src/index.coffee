@@ -3,7 +3,7 @@ cluster = require 'cluster'
 utils = require './utils'
 debug = require('debug')('parallelTranspile')
 Path = require 'path'
-checksum = require 'checksum'
+Checksum = require 'checksum'
 async = require 'async'
 
 STATE_FILENAME = ".parallel-transpile.state"
@@ -118,7 +118,7 @@ class Queue extends EventEmitter
               subDetails.mtime = +depStat.mtime
               done()
           getChecksum: (done) ->
-            checksum.file dep, (err, csum) ->
+            Checksum.file dep, (err, csum) ->
               return done err if err
               subDetails.checksum = csum
               done()
