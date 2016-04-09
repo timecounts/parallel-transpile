@@ -273,34 +273,38 @@ module.exports = (options, callback) ->
 
   upToDate = (filename, rule, done) ->
     obj = options.state.files[filename]
-    return done false unless obj
+    unless obj
+      debug("#{filename} not known")
+      return done false
     for file, {mtime, checksum} of obj.dependencies
       stat2 =
         try
           fs.statSync(file)
-      return done false unless stat2
+      unless stat2
+        debug("#{file} doesn't exist")
+        return done false
       if +stat2.mtime > mtime
         debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
         return done false
     loaderConfigs = obj.loaders?.map((c) -> c[0])
     if rule.loaders.join("$$") != loaderConfigs?.join("$$")
-      debug("Loaders for #{file} have changed")
+      debug("Loaders for #{filename} have changed")
       return done false
     for c in obj.loaders
       [l, {version}] = c
       currentVersion = versionFromLoaderString(l)
       if currentVersion != version
-        debug("Loader version for #{l} (#{file}) has changed (#{version} -> #{currentVersion})")
+        debug("Loader version for #{l} (#{filename}) has changed (#{version} -> #{currentVersion})")
         return done false
     ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
     if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
-      debug("Rule dependencies for #{file} have changed")
+      debug("Rule dependencies for #{filename} have changed")
       return done false
     for c in obj.ruleDependencies
       [f, {mtime}] = c
       currentMtime = +fs.statSync(f).mtime
       if currentMtime > mtime
-        debug("Dependency #{f} for #{file} has changed")
+        debug("Dependency #{f} for #{filename} has changed")
         return done false
     return done true
 
