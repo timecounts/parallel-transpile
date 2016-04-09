@@ -47,15 +47,20 @@ teardownTranspiler = (done) ->
   delete @transpiler
   setTimeout done, 250 # Ugly hack to give children sufficient time to kill their workers
 
-transpileWait = (fn) -> (done) ->
+transpileWait = (fn, timeout = 60000) -> (callback) ->
+  done = ->
+    clearInterval(interval)
+    callback()
+    done = -> #NOOP
   counter = @transpiler.buildNumber
   fn.call(this)
   check = =>
     if !@transpiler || @transpiler.buildNumber > counter
-      done() if @transpiler # On fail, @transpiler will be cleaned up, but we still need to clearInterval
-      clearInterval(interval)
+      done() if @transpiler
   interval = setInterval check, 20
   check()
+  t = setTimeout done, timeout
+  t.unref()
 
 getOutput = (path, options) ->
   try

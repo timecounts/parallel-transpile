@@ -189,6 +189,26 @@ describe 'SCSS', ->
           background-color: #0f0; }
         """
 
+    it 'waits a second', (done) -> setTimeout done, 1000
+
+    it 'then touches bar.css and waits for transpile', transpileWait ->
+      @fooMtime = getFileStats("scss/foo.css").mtime
+      @barMtime = getFileStats("scss/bar.css").mtime
+      fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
+        """
+        @import "vars";
+        .bar {
+          background-color: $green;
+        }
+        """
+    , 3000
+
+    it 'foo.css should be unchanged', ->
+      expect(getFileStats("scss/foo.css").mtime).to.eql @fooMtime
+
+    it 'bar.css should be unchanged', ->
+      expect(getFileStats("scss/bar.css").mtime).to.eql @barMtime
+
     it 'then modifies _vars.css and waits for transpile', transpileWait ->
       @fooMtime = getFileStats("scss/foo.css").mtime
       @barMtime = getFileStats("scss/bar.css").mtime
