@@ -349,7 +349,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var base, delayQueueEmptyForCallback, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, seen, state, type, upToDate, watchChange, watchQueue, watchRemove;
+  var base, delayQueueEmptyForCallback, delayWatchQueueEmptyForCallback, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, seen, state, type, upToDate, watchChange, watchQueue, watchRemove;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -407,24 +407,38 @@ module.exports = function(options, callback) {
   options.parallel = Math.min(options.parallel, (ref3 = options.maxParallel) != null ? ref3 : 16);
   if (options.watch) {
     watchQueue = new Queue(options);
+    delayWatchQueueEmptyForCallback = function(cb) {
+      var release;
+      release = watchQueue.delayEmpty();
+      return function() {
+        var args;
+        args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+        cb.apply(null, args);
+        return release();
+      };
+    };
     watchChange = function(file) {
-      var dependencies, deps, ref4, ref5, results, self, sourceWithSlash, stateFile;
+      var sourceWithSlash;
       sourceWithSlash = options.source + "/";
-      if (file.substr(0, sourceWithSlash.length) === sourceWithSlash) {
-        watchQueue.add(file);
-      }
-      ref4 = options.state.files;
-      results = [];
-      for (stateFile in ref4) {
-        dependencies = ref4[stateFile].dependencies;
-        ref5 = Object.keys(dependencies), self = ref5[0], deps = 2 <= ref5.length ? slice.call(ref5, 1) : [];
-        if (indexOf.call(deps, file) >= 0) {
-          results.push(watchQueue.add(self));
-        } else {
-          results.push(void 0);
-        }
-      }
-      return results;
+      return Checksum.file(file, delayWatchQueueEmptyForCallback(function(err, csum) {
+        debug(file + " changed, checksum: " + csum);
+        Object.keys(options.state.files).forEach(function(filename) {
+          var added, details, obj, rebuild;
+          rebuild = function() {
+            debug(filename + " depends on " + file + ", rebuilding");
+            watchQueue.add(Object.keys(obj.dependencies)[0]);
+            return rebuild = function() {};
+          };
+          obj = options.state.files[filename];
+          details = obj.dependencies[file];
+          if (details) {
+            if (csum !== details.checksum) {
+              rebuild();
+              added = true;
+            }
+          }
+        });
+      }));
     };
     watchRemove = function(file) {
       var dependencies, deps, ref4, ref5, results, self, stateFile;

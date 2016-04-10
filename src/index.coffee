@@ -239,15 +239,28 @@ module.exports = (options, callback) ->
 
   if options.watch
     watchQueue = new Queue(options)
+    delayWatchQueueEmptyForCallback = (cb) ->
+      release = watchQueue.delayEmpty()
+      return (args...) ->
+        cb(args...)
+        release()
     watchChange = (file) ->
       sourceWithSlash = options.source + "/"
-      if file.substr(0, sourceWithSlash.length) is sourceWithSlash
-        watchQueue.add(file)
-      # Look for anything that depends on us and add that to the queue
-      for stateFile, {dependencies} of options.state.files
-        [self, deps...] = Object.keys(dependencies)
-        if file in deps
-          watchQueue.add self
+      return Checksum.file file, delayWatchQueueEmptyForCallback (err, csum) ->
+        debug("#{file} changed, checksum: #{csum}")
+        Object.keys(options.state.files).forEach (filename) ->
+          rebuild = ->
+            debug("#{filename} depends on #{file}, rebuilding")
+            watchQueue.add(Object.keys(obj.dependencies)[0])
+            rebuild = -> #noop
+          obj = options.state.files[filename]
+          details = obj.dependencies[file]
+          if details
+            if csum isnt details.checksum
+              rebuild()
+              added = true
+          return
+        return
     watchRemove = (file) ->
       watchQueue.remove(file)
       if options.delete
