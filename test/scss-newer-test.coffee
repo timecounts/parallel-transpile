@@ -30,6 +30,7 @@ describe 'SCSS newer', ->
   before setupScratchpad
 
   before transpile
+    delete: true
     newer: true
     rules: [
       RULES.scss
@@ -59,6 +60,7 @@ describe 'SCSS newer', ->
       """
 
   it 'then we compile again', transpile
+    delete: true
     newer: true
     rules: [
       RULES.scss
@@ -84,6 +86,7 @@ describe 'SCSS newer', ->
       """
 
   it 'then we compile again', transpile
+    delete: true
     newer: true
     rules: [
       RULES.scss
