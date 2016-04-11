@@ -104,25 +104,83 @@ describe 'SCSS newer', ->
         background-color: green; }
       """
 
-  it 'then we delete foo.scss', ->
-    fs.unlinkSync "#{SCRATCHPAD_SOURCE}/scss/foo.scss"
-    @barMtime = getFileStats("scss/bar.css").mtime
+  it 'then we delete bar.scss', ->
+    fs.unlinkSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss"
+    @fooMtime = getFileStats("scss/foo.css").mtime
 
   it 'then we compile again', transpile
-    newer: true
     delete: true
+    newer: true
     rules: [
       RULES.scss
     ]
 
-  it 'deletes foo.css', ->
-    expect(getOutput("scss/foo.css", 'utf-8')).to.eql null
+  it 'deletes bar.css', ->
+    expect(getOutput("scss/bar.css", 'utf-8')).to.eql null
 
-  it 'doesn\'t remember foo.css', ->
-    expect(getState().files).not.to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/foo.css")
+  it 'doesn\'t remember bar.css', ->
+    expect(getState().files).not.to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/bar.css")
 
-  it 'leaves bar.css unmodified', ->
-    expect(getFileStats("scss/bar.css").mtime).to.eql @barMtime
+  it 'leaves foo.css unmodified', ->
+    expect(getFileStats("scss/foo.css").mtime).to.eql @fooMtime
 
-  it 'still remembers bar.css', ->
-    expect(getState().files).to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/bar.css")
+  it 'still remembers foo.css', ->
+    expect(getState().files).to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/foo.css")
+
+  it 'then restores bar.css', ->
+    @fooMtime = getFileStats("scss/foo.css").mtime
+    fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
+      """
+      @import "vars";
+      .bar {
+        background-color: $green;
+      }
+      """
+
+  it 'then we compile again', transpile
+    delete: true
+    newer: true
+    rules: [
+      RULES.scss
+    ]
+
+  it 'compiles bar.css', ->
+    expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
+      .bar {
+        background-color: green; }
+      """
+
+  it 'leaves foo.css unmodified', ->
+    expect(getFileStats("scss/foo.css").mtime).to.eql @fooMtime
+
+
+  it 'version upgrade', ->
+    @fooMtime = getFileStats("scss/foo.css").mtime
+    @barMtime = getFileStats("scss/bar.css").mtime
+    stateFile = "#{SCRATCHPAD}/build/.parallel-transpile.state"
+    state = fs.readFileSync(stateFile, 'utf-8')
+    j = JSON.parse(state)
+    j.version = '0.0.1'
+    fs.writeFileSync(stateFile, JSON.stringify(j))
+
+  it 'transpiles', transpile
+    delete: true
+    newer: true
+    rules: [
+      RULES.scss
+    ]
+
+  it 'compiles foo.css', ->
+    expect(getFileStats("scss/foo.css").mtime).to.not.eql @fooMtime
+    expect(getOutput("scss/foo.css", 'utf-8')).to.eql """
+      .foo {
+        color: red; }
+      """
+
+  it 'compiles bar.css', ->
+    expect(getFileStats("scss/bar.css").mtime).to.not.eql @barMtime
+    expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
+      .bar {
+        background-color: green; }
+      """
+

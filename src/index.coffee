@@ -239,6 +239,14 @@ module.exports = (options, callback) ->
   options.parallel ||= os.cpus().length
   options.parallel = Math.min(options.parallel, options.maxParallel ? 16)
 
+  deleteSync = (file) ->
+    o = options.output + "/"
+    file = Path.resolve(file)
+    if file.indexOf(o) is 0
+      fs.unlinkSync(file)
+    else
+      throw new Error("Tried to delete #{file} but it's not in the output directory #{o}!")
+
 
   if options.watch
     watchQueue = new Queue(options)
@@ -299,10 +307,18 @@ module.exports = (options, callback) ->
   try
     state = JSON.parse(fs.readFileSync("#{options.output}/#{STATE_FILENAME}"))
     if state.version isnt VERSION
-      # Start from scratch on version update
-      console.log "STARTING FROM SCRATCH"
-      debug("WARNING: version changed from #{state.version} -> #{VERSION}. Starting from scratch")
-      state = null
+      warning = "version changed from #{state.version} -> #{VERSION}"
+      if options.delete
+        console.error("WARNING: #{warning}. Starting from scratch")
+        debug("Starting from scratch because #{warning}")
+        Object.keys(state.files).forEach((file) ->
+          debug(" -> deleting #{file}")
+          deleteSync(file)
+        )
+        debug("    Cleanup complete")
+        state = null
+      else
+        console.error("WARNING: #{warning}. Strongly advise rebuild")
   catch
     debug("WARNING: no statefile! Starting from scratch")
     state = null
@@ -425,7 +441,7 @@ module.exports = (options, callback) ->
         debug "Deleting file with no source: #{file}"
         options.setFileState(file, null)
         try
-          fs.unlinkSync file
+          deleteSync file
     debug "INITIAL BUILD COMPLETE"
     status = getStatus(false)
     options.initialBuildComplete?(status)

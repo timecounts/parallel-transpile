@@ -353,7 +353,7 @@ Queue = (function(superClass) {
 })(EventEmitter);
 
 module.exports = function(options, callback) {
-  var base, delayQueueEmptyForCallback, delayWatchQueueEmptyForCallback, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, seen, state, type, upToDate, watchChange, watchQueue, watchRemove;
+  var base, delayQueueEmptyForCallback, delayWatchQueueEmptyForCallback, deleteSync, error1, errorOccurred, getStatus, inExt, j, len, loaders, matches, oldOnError, outExt, queue, recurse, ref, ref1, ref2, ref3, seen, state, type, upToDate, warning, watchChange, watchQueue, watchRemove;
   if (!fs.existsSync(options.source) || !fs.statSync(options.source).isDirectory()) {
     return callback(error(2, "Input must be a directory"));
   }
@@ -409,6 +409,16 @@ module.exports = function(options, callback) {
   }
   options.parallel || (options.parallel = os.cpus().length);
   options.parallel = Math.min(options.parallel, (ref3 = options.maxParallel) != null ? ref3 : 16);
+  deleteSync = function(file) {
+    var o;
+    o = options.output + "/";
+    file = Path.resolve(file);
+    if (file.indexOf(o) === 0) {
+      return fs.unlinkSync(file);
+    } else {
+      throw new Error("Tried to delete " + file + " but it's not in the output directory " + o + "!");
+    }
+  };
   if (options.watch) {
     watchQueue = new Queue(options);
     delayWatchQueueEmptyForCallback = function(cb) {
@@ -490,9 +500,19 @@ module.exports = function(options, callback) {
   try {
     state = JSON.parse(fs.readFileSync(options.output + "/" + STATE_FILENAME));
     if (state.version !== VERSION) {
-      console.log("STARTING FROM SCRATCH");
-      debug("WARNING: version changed from " + state.version + " -> " + VERSION + ". Starting from scratch");
-      state = null;
+      warning = "version changed from " + state.version + " -> " + VERSION;
+      if (options["delete"]) {
+        console.error("WARNING: " + warning + ". Starting from scratch");
+        debug("Starting from scratch because " + warning);
+        Object.keys(state.files).forEach(function(file) {
+          debug(" -> deleting " + file);
+          return deleteSync(file);
+        });
+        debug("    Cleanup complete");
+        state = null;
+      } else {
+        console.error("WARNING: " + warning + ". Strongly advise rebuild");
+      }
     }
   } catch (error1) {
     debug("WARNING: no statefile! Starting from scratch");
@@ -692,7 +712,7 @@ module.exports = function(options, callback) {
         debug("Deleting file with no source: " + file);
         options.setFileState(file, null);
         try {
-          fs.unlinkSync(file);
+          deleteSync(file);
         } catch (undefined) {}
       }
     }
