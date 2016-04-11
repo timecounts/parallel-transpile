@@ -335,8 +335,12 @@ Queue = (function(superClass) {
     })(this);
   };
 
+  Queue.prototype.isEmpty = function() {
+    return this.delayEmptyCount === 0 && this.inProgress.length === 0;
+  };
+
   Queue.prototype.checkEmpty = function() {
-    if (this.delayEmptyCount === 0 && this.inProgress.length === 0) {
+    if (this.isEmpty()) {
       this.emit('empty');
       if (this.oneshot) {
         this.destroy();
@@ -361,6 +365,7 @@ module.exports = function(options, callback) {
   }
   options.output = Path.resolve(options.output);
   options.source = Path.resolve(options.source);
+  options["delete"] || (options["delete"] = options.watch);
   if (options.rules == null) {
     options.rules = [];
   }
@@ -441,24 +446,24 @@ module.exports = function(options, callback) {
       }));
     };
     watchRemove = function(file) {
-      var dependencies, deps, ref4, ref5, results, self, stateFile;
+      var dependencies, deps, ref4, ref5, self, stateFile;
       watchQueue.remove(file);
       if (options["delete"]) {
         ref4 = options.state.files;
-        results = [];
         for (stateFile in ref4) {
           dependencies = ref4[stateFile].dependencies;
           ref5 = Object.keys(dependencies), self = ref5[0], deps = 2 <= ref5.length ? slice.call(ref5, 1) : [];
           if (file === self) {
             options.setFileState(stateFile, null);
             try {
-              results.push(fs.unlinkSync(stateFile));
+              debug(file + " was deleted, deleting " + stateFile);
+              fs.unlinkSync(stateFile);
             } catch (undefined) {}
-          } else {
-            results.push(void 0);
           }
         }
-        return results;
+        if (watchQueue.isEmpty()) {
+          return typeof options.watchBuildComplete === "function" ? options.watchBuildComplete(getStatus(true)) : void 0;
+        }
       }
     };
     watcher = chokidar.watch(options.source);

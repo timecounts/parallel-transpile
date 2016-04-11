@@ -187,8 +187,11 @@ class Queue extends EventEmitter
       @delayEmptyCount--
       @checkEmpty()
 
+  isEmpty: ->
+    @delayEmptyCount == 0 && @inProgress.length == 0
+
   checkEmpty: ->
-    if @delayEmptyCount == 0 && @inProgress.length == 0
+    if @isEmpty()
       @emit 'empty'
       @destroy() if @oneshot
     return
@@ -269,7 +272,10 @@ module.exports = (options, callback) ->
           if file is self
             options.setFileState(stateFile, null)
             try
+              debug("#{file} was deleted, deleting #{stateFile}")
               fs.unlinkSync stateFile
+        if watchQueue.isEmpty()
+          options.watchBuildComplete?(getStatus(true))
 
     watcher = chokidar.watch options.source
     watcher.on 'ready', ->
