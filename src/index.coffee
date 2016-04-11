@@ -251,18 +251,24 @@ module.exports = (options, callback) ->
       sourceWithSlash = options.source + "/"
       return Checksum.file file, delayWatchQueueEmptyForCallback (err, csum) ->
         debug("#{file} changed, checksum: #{csum}")
+        foundDirect = false
         Object.keys(options.state.files).forEach (filename) ->
+          obj = options.state.files[filename]
+          masterFile = Object.keys(obj.dependencies)[0]
+          foundDirect ||= masterFile is file
           rebuild = ->
             debug("#{filename} depends on #{file}, rebuilding")
-            watchQueue.add(Object.keys(obj.dependencies)[0])
+            watchQueue.add(masterFile)
             rebuild = -> #noop
-          obj = options.state.files[filename]
           details = obj.dependencies[file]
           if details
             if csum isnt details.checksum
               rebuild()
               added = true
           return
+        isSourceFile = file.substr(0, sourceWithSlash.length) is sourceWithSlash
+        if !foundDirect && isSourceFile
+          watchQueue.add(file)
         return
     watchRemove = (file) ->
       watchQueue.remove(file)

@@ -425,15 +425,19 @@ module.exports = function(options, callback) {
       var sourceWithSlash;
       sourceWithSlash = options.source + "/";
       return Checksum.file(file, delayWatchQueueEmptyForCallback(function(err, csum) {
+        var foundDirect, isSourceFile;
         debug(file + " changed, checksum: " + csum);
+        foundDirect = false;
         Object.keys(options.state.files).forEach(function(filename) {
-          var added, details, obj, rebuild;
+          var added, details, masterFile, obj, rebuild;
+          obj = options.state.files[filename];
+          masterFile = Object.keys(obj.dependencies)[0];
+          foundDirect || (foundDirect = masterFile === file);
           rebuild = function() {
             debug(filename + " depends on " + file + ", rebuilding");
-            watchQueue.add(Object.keys(obj.dependencies)[0]);
+            watchQueue.add(masterFile);
             return rebuild = function() {};
           };
-          obj = options.state.files[filename];
           details = obj.dependencies[file];
           if (details) {
             if (csum !== details.checksum) {
@@ -442,6 +446,10 @@ module.exports = function(options, callback) {
             }
           }
         });
+        isSourceFile = file.substr(0, sourceWithSlash.length) === sourceWithSlash;
+        if (!foundDirect && isSourceFile) {
+          watchQueue.add(file);
+        }
       }));
     };
     watchRemove = function(file) {
