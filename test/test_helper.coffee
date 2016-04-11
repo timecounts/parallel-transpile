@@ -50,6 +50,7 @@ teardownTranspiler = (done) ->
 transpileWait = (fn, timeout = 60000) -> (callback) ->
   done = ->
     clearInterval(interval)
+    clearTimeout(t)
     callback()
     done = -> #NOOP
   counter = @transpiler.buildNumber
