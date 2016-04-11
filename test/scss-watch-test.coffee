@@ -30,6 +30,7 @@ describe 'SCSS watch', ->
 
   after teardownTranspiler
   before setupTranspiler
+    delete: true
     newer: true
     rules: [
       RULES.scss
