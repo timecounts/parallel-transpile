@@ -117,3 +117,22 @@ describe 'SCSS watch', ->
 
   it 'bar.css should be deleted', ->
     expect(getFileStats("scss/bar.css")).to.eql null
+
+  it 'then restores bar.scss and waits for transpile', transpileWait ->
+    @fooMtime = getFileStats("scss/foo.css").mtime
+    fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
+      """
+      @import "vars";
+      .bar {
+        background-color: $green;
+      }
+      """
+
+  it 'foo.css should be unchanged', ->
+    expect(getFileStats("scss/foo.css").mtime).to.eql @fooMtime
+
+  it 'compiles bar.css', ->
+    expect(getOutput("scss/bar.css", 'utf-8')).to.eql """
+      .bar {
+        background-color: green; }
+      """

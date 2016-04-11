@@ -365,7 +365,6 @@ module.exports = function(options, callback) {
   }
   options.output = Path.resolve(options.output);
   options.source = Path.resolve(options.source);
-  options["delete"] || (options["delete"] = options.watch);
   if (options.rules == null) {
     options.rules = [];
   }
