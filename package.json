@@ -1,6 +1,6 @@
 {
   "name": "parallel-transpile",
-  "version": "0.5.1",
+  "version": "0.6.0-rc5",
   "description": "Transpile files in parallel using all available CPUs",
   "main": "index.js",
   "bin": {
@@ -38,6 +38,8 @@
   },
   "homepage": "https://github.com/timecounts/parallel-transpile",
   "dependencies": {
+    "async": "1.5.2",
+    "checksum": "0.1.1",
     "chokidar": "^1.0.1",
     "debug": "^2.2.0",
     "enhanced-resolve": "^0.9.1",

@@ -3,6 +3,9 @@ cluster = require 'cluster'
 utils = require './utils'
 debug = require('debug')('parallelTranspile')
 Path = require 'path'
+Checksum = require 'checksum'
+async = require 'async'
+VERSION = require("#{__dirname}/package.json").version
 
 STATE_FILENAME = ".parallel-transpile.state"
 
@@ -71,6 +74,7 @@ class Queue extends EventEmitter
     @paused = true
     @queue = []
     @inProgress = []
+    @delayEmptyCount = 0
 
   destroy: =>
     return unless @buckets
@@ -80,9 +84,17 @@ class Queue extends EventEmitter
 
   complete: (bucket, err, task, details = {}) =>
     {path} = task
+    next = =>
+      i = @inProgress.indexOf(path)
+      if i is -1
+        throw new Error "This shouldn't be able to happen"
+      @inProgress.splice(i, 1)
+      @processNext()
+      @checkEmpty()
     if err
       @options.onError?(err)
       debug "[#{bucket.id}] Failed: #{path}"
+      next()
     else
       deps = Object.keys(details.dependencies)[1..]
       if deps.length
@@ -96,18 +108,29 @@ class Queue extends EventEmitter
       delete details.outPath
       details.loaders = task.rule.loaders.map (l) ->
         [l, {version: versionFromLoaderString(l)}]
-      details.ruleDependencies = (task.rule.dependencies || []).map (dep) ->
-        depStat = fs.statSync(dep)
-        return [dep, {mtime: +depStat.mtime}]
-      @options.setFileState outPath, details
-    i = @inProgress.indexOf(path)
-    if i is -1
-      throw new Error "This shouldn't be able to happen"
-    @inProgress.splice(i, 1)
-    @processNext()
-    if @inProgress.length is 0
-      @emit 'empty'
-      @destroy() if @oneshot
+      initialDeps = (task.rule.dependencies || [])
+      getStats = (dep, done) ->
+        subDetails = {}
+        async.parallel
+          getMtime: (done) ->
+            fs.stat dep, (err, depStat) ->
+              return done err if err
+              subDetails.mtime = +depStat.mtime
+              done()
+          getChecksum: (done) ->
+            Checksum.file dep, (err, csum) ->
+              return done err if err
+              subDetails.checksum = csum
+              done()
+        , (err) ->
+          done err, [dep, subDetails]
+      async.map initialDeps, getStats, (err, deps) =>
+        if err
+          console.error err
+          return next()
+        details.ruleDependencies = deps || initialDeps.map((dep) -> [dep, {}])
+        @options.setFileState outPath, details
+        next()
     return
 
   run: ->
@@ -119,7 +142,7 @@ class Queue extends EventEmitter
     process.on 'exit', @destroy
     delete @paused
     @processNext()
-    @emit 'empty' unless @inProgress.length > 0
+    @checkEmpty()
     return this
 
   rule: (path) ->
@@ -141,6 +164,7 @@ class Queue extends EventEmitter
 
   processNext: ->
     return if @paused
+    return unless @buckets # kicked it
     return unless @queue.length
     bestBucket = null
     bestBucketScore = 0
@@ -156,6 +180,21 @@ class Queue extends EventEmitter
     @inProgress.push availablePath
     bestBucket.add({path: availablePath, rule: @rule(availablePath)})
     @processNext()
+
+  delayEmpty: ->
+    @delayEmptyCount++
+    return =>
+      @delayEmptyCount--
+      @checkEmpty()
+
+  isEmpty: ->
+    @delayEmptyCount == 0 && @inProgress.length == 0
+
+  checkEmpty: ->
+    if @isEmpty()
+      @emit 'empty'
+      @destroy() if @oneshot
+    return
 
 module.exports = (options, callback) ->
 
@@ -200,18 +239,45 @@ module.exports = (options, callback) ->
   options.parallel ||= os.cpus().length
   options.parallel = Math.min(options.parallel, options.maxParallel ? 16)
 
+  deleteSync = (file) ->
+    o = options.output + "/"
+    file = Path.resolve(file)
+    if file.indexOf(o) is 0
+      fs.unlinkSync(file)
+    else
+      throw new Error("Tried to delete #{file} but it's not in the output directory #{o}!")
+
 
   if options.watch
     watchQueue = new Queue(options)
+    delayWatchQueueEmptyForCallback = (cb) ->
+      release = watchQueue.delayEmpty()
+      return (args...) ->
+        cb(args...)
+        release()
     watchChange = (file) ->
       sourceWithSlash = options.source + "/"
-      if file.substr(0, sourceWithSlash.length) is sourceWithSlash
-        watchQueue.add(file)
-      # Look for anything that depends on us and add that to the queue
-      for stateFile, {dependencies} of options.state.files
-        [self, deps...] = Object.keys(dependencies)
-        if file in deps
-          watchQueue.add self
+      return Checksum.file file, delayWatchQueueEmptyForCallback (err, csum) ->
+        debug("#{file} changed, checksum: #{csum}")
+        foundDirect = false
+        Object.keys(options.state.files).forEach (filename) ->
+          obj = options.state.files[filename]
+          masterFile = Object.keys(obj.dependencies)[0]
+          foundDirect ||= masterFile is file
+          rebuild = ->
+            debug("#{filename} depends on #{file}, rebuilding")
+            watchQueue.add(masterFile)
+            rebuild = -> #noop
+          details = obj.dependencies[file]
+          if details
+            if csum isnt details.checksum
+              rebuild()
+              added = true
+          return
+        isSourceFile = file.substr(0, sourceWithSlash.length) is sourceWithSlash
+        if !foundDirect && isSourceFile
+          watchQueue.add(file)
+        return
     watchRemove = (file) ->
       watchQueue.remove(file)
       if options.delete
@@ -220,7 +286,10 @@ module.exports = (options, callback) ->
           if file is self
             options.setFileState(stateFile, null)
             try
+              debug("#{file} was deleted, deleting #{stateFile}")
               fs.unlinkSync stateFile
+        if watchQueue.isEmpty()
+          options.watchBuildComplete?(getStatus(true))
 
     watcher = chokidar.watch options.source
     watcher.on 'ready', ->
@@ -234,10 +303,28 @@ module.exports = (options, callback) ->
     errorOccurred = true
     oldOnError?.apply(this, arguments)
 
+  state = null
   try
     state = JSON.parse(fs.readFileSync("#{options.output}/#{STATE_FILENAME}"))
+    if state.version isnt VERSION
+      warning = "version changed from #{state.version} -> #{VERSION}"
+      if options.delete
+        console.error("WARNING: #{warning}. Starting from scratch")
+        debug("Starting from scratch because #{warning}")
+        Object.keys(state.files).forEach((file) ->
+          debug(" -> deleting #{file}")
+          deleteSync(file)
+        )
+        debug("    Cleanup complete")
+        state = null
+      else
+        console.error("WARNING: #{warning}. Strongly advise rebuild")
   catch
-    state = {}
+    debug("WARNING: no statefile! Starting from scratch")
+    state = null
+
+  state ?=
+    version: VERSION
   options.state = state
   options.state.files ?= {}
   options.setFileState = (filename, obj) ->
@@ -248,50 +335,77 @@ module.exports = (options, callback) ->
     fs.writeFileSync "#{options.output}/#{STATE_FILENAME}",
       JSON.stringify(options.state)
 
-  upToDate = (filename, rule) ->
+  upToDate = (filename, rule, done) ->
     obj = options.state.files[filename]
-    return false unless obj
-    for file, {mtime} of obj.dependencies
+    unless obj
+      debug("#{filename} not known")
+      return done false
+    checkDependency = (file, done) ->
+      debug("Checking dependency #{file}")
+      {mtime, checksum} = obj.dependencies[file]
       stat2 =
         try
           fs.statSync(file)
-      return false unless stat2
+      unless stat2
+        debug("#{file} doesn't exist")
+        return done new Error("NOEXIST")
       if +stat2.mtime > mtime
-        debug("#{file} has changed (#{mtime} -> #{+stat2.mtime})")
-        return false
-    loaderConfigs = obj.loaders?.map((c) -> c[0])
-    if rule.loaders.join("$$") != loaderConfigs?.join("$$")
-      debug("Loaders for #{file} have changed")
-      return false
-    for c in obj.loaders
-      [l, {version}] = c
-      currentVersion = versionFromLoaderString(l)
-      if currentVersion != version
-        debug("Loader version for #{l} (#{file}) has changed (#{version} -> #{currentVersion})")
-        return false
-    ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
-    if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
-      debug("Rule dependencies for #{file} have changed")
-      return false
-    for c in obj.ruleDependencies
-      [f, {mtime}] = c
-      currentMtime = +fs.statSync(f).mtime
-      if currentMtime > mtime
-        debug("Dependency #{f} for #{file} has changed")
-        return false
-    return true
+        debug("#{file} mtime has changed (#{mtime} -> #{+stat2.mtime}), checking checksum")
+        return Checksum.file file, (err, csum) ->
+          if csum is checksum
+            return done()
+          else
+            debug("#{file} checksums differ")
+            return done new Error("CHANGED")
+      else
+        return done()
+    async.map Object.keys(obj.dependencies), checkDependency, (err) =>
+      if err
+        return done false
+      loaderConfigs = obj.loaders?.map((c) -> c[0])
+      oldLoaders = loaderConfigs?.join("$$")
+      newLoaders = rule.loaders.join("$$")
+      if oldLoaders != newLoaders
+        debug("Loaders for #{filename} have changed (#{oldLoaders} -> #{newLoaders})")
+        return done false
+      for c in obj.loaders
+        [l, {version}] = c
+        currentVersion = versionFromLoaderString(l)
+        if currentVersion != version
+          debug("Loader version for #{l} (#{filename}) has changed (#{version} -> #{currentVersion})")
+          return done false
+      ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
+      if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
+        debug("Rule dependencies for #{filename} have changed")
+        return done false
+      for c in obj.ruleDependencies
+        [f, {mtime}] = c
+        currentMtime =
+          try
+            +fs.statSync(f).mtime
+        if !currentMtime || currentMtime > mtime
+          debug("Dependency #{f} for #{filename} has changed")
+          return done false
+      return done true
 
   queue = new Queue(options, true)
+
+  delayQueueEmptyForCallback = (cb) ->
+    release = queue.delayEmpty()
+    return (args...) ->
+      cb(args...)
+      release()
+
   seen = []
   recurse = (path) ->
     files = fs.readdirSync(path)
-    for file in files when !file.match(/^\.+$/)
+    for file in files when !file.match(/^\.+$/) then do (file) ->
       filePath = "#{path}/#{file}"
       stat = fs.statSync(filePath)
       if stat.isDirectory()
         recurse(filePath)
       else if stat.isFile()
-        shouldAdd = true
+        addToQueue = => queue.add(filePath)
         if options.newer
           rule = null
           for aRule in options.rules when endsWith(filePath, aRule.inExt)
@@ -302,9 +416,13 @@ module.exports = (options, callback) ->
             relativePath = filePath.substr(options.source.length)
             outPath = Path.resolve "#{options.output}/#{utils.swapExtension(relativePath, inExt, outExt)}"
             seen.push outPath
-            if upToDate(outPath, rule)
-              shouldAdd = false
-        queue.add(filePath) if shouldAdd
+            upToDate outPath, rule, delayQueueEmptyForCallback (isUpToDate) ->
+              if !isUpToDate
+                addToQueue()
+          else
+            addToQueue()
+        else
+          addToQueue()
     return
 
   recurse options.source
@@ -323,7 +441,7 @@ module.exports = (options, callback) ->
         debug "Deleting file with no source: #{file}"
         options.setFileState(file, null)
         try
-          fs.unlinkSync file
+          deleteSync file
     debug "INITIAL BUILD COMPLETE"
     status = getStatus(false)
     options.initialBuildComplete?(status)

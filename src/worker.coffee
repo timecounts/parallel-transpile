@@ -1,6 +1,7 @@
 fs = require 'fs'
 Path = require 'path'
 mkdirp = require 'mkdirp'
+Checksum = require 'checksum'
 utils = require './utils'
 {SourceMapGenerator, SourceMapConsumer} = require 'source-map'
 
@@ -92,6 +93,7 @@ process.on 'message', (m) ->
       dependencies: {
         "#{absolutePath}": {
           mtime: +stat.mtime
+          checksum: Checksum(fs.readFileSync(absolutePath))
         }
       }
 

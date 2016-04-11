@@ -26,7 +26,10 @@ setupScratchpad = ->
 
 transpile = (_options) -> (done) ->
   options = makeOptions _options
-  parallelTranspile options, done
+  # Add a delay to ensure mtimes change
+  setTimeout ->
+    parallelTranspile options, done
+  , 1000
 
 setupTranspiler = (_options) -> (done) ->
   options = makeOptions _options,
@@ -44,15 +47,21 @@ teardownTranspiler = (done) ->
   delete @transpiler
   setTimeout done, 250 # Ugly hack to give children sufficient time to kill their workers
 
-transpileWait = (fn) -> (done) ->
+transpileWait = (fn, timeout = 60000) -> (callback) ->
+  done = ->
+    clearInterval(interval)
+    clearTimeout(t)
+    callback()
+    done = -> #NOOP
   counter = @transpiler.buildNumber
-  fn()
+  fn.call(this)
   check = =>
     if !@transpiler || @transpiler.buildNumber > counter
-      done() if @transpiler # On fail, @transpiler will be cleaned up, but we still need to clearInterval
-      clearInterval(interval)
+      done() if @transpiler
   interval = setInterval check, 20
   check()
+  t = setTimeout done, timeout
+  t.unref()
 
 getOutput = (path, options) ->
   try
@@ -61,6 +70,13 @@ getOutput = (path, options) ->
       return ret.trim()
     else
       return ret
+  catch e
+    return null
+
+getFileStats = (path) ->
+  try
+    ret = fs.statSync("#{SCRATCHPAD_OUTPUT}/#{path}")
+    return ret
   catch e
     return null
 
@@ -90,4 +106,5 @@ module.exports = {
   transpileWait
   getOutput
   getState
+  getFileStats
 }
