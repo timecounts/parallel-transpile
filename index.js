@@ -575,7 +575,6 @@ module.exports = function(options, callback) {
           return done();
         }
         return Checksum.file(filename, function(err, csum) {
-          debug("Checking output " + filename);
           if (csum === obj.outputChecksum) {
             return done();
           } else {

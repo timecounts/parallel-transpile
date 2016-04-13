@@ -364,7 +364,6 @@ module.exports = (options, callback) ->
         if !options.paranoid
           return done()
         Checksum.file filename, (err, csum) ->
-          debug("Checking output #{filename}")
           if csum is obj.outputChecksum
             return done()
           else
