@@ -27,9 +27,13 @@ Usage: parallel-transpile [options] -o outputDirectory inputDirectory
   -o, --output        the output directory
   -p, --parallel      how many instances to run in parallel
                         (defaults to number of CPUs)
+  -m, --maxParallel   maximum number of instances to run in parallel
+                        (defaults to 16)
   -t, --type          add a type to be converted, see below
                         (can be called multiple times)
   -n, --newer         only build files newer than destination files
+  -d, --delete        delete files that no longer have a source
+  -x, --paranoid      don't trust compiled code to be unmodified
 
 Types
 
