@@ -48,7 +48,7 @@ describe 'SCSS newer', ->
         color: #0f0; }
       """
 
-  it 'then modifies bar.css', ->
+  it 'then modifies bar.scss', ->
     @fooMtime = getFileStats("scss/foo.css").mtime
     @barMtime = getFileStats("scss/bar.css").mtime
     fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
@@ -76,7 +76,7 @@ describe 'SCSS newer', ->
         background-color: #0f0; }
       """
 
-  it 'then modifies _vars.css', ->
+  it 'then modifies _vars.scss', ->
     @fooMtime = getFileStats("scss/foo.css").mtime
     @barMtime = getFileStats("scss/bar.css").mtime
     fs.writeFileSync "#{SCRATCHPAD}/lib/scss/_vars.scss",
@@ -127,7 +127,7 @@ describe 'SCSS newer', ->
   it 'still remembers foo.css', ->
     expect(getState().files).to.contain.all.keys("#{SCRATCHPAD_OUTPUT}/scss/foo.css")
 
-  it 'then restores bar.css', ->
+  it 'then restores bar.scss', ->
     @fooMtime = getFileStats("scss/foo.css").mtime
     fs.writeFileSync "#{SCRATCHPAD_SOURCE}/scss/bar.scss",
       """
@@ -183,4 +183,3 @@ describe 'SCSS newer', ->
       .bar {
         background-color: green; }
       """
-
