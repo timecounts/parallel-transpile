@@ -569,55 +569,76 @@ module.exports = function(options, callback) {
         return done();
       }
     };
-    return async.map(Object.keys(obj.dependencies), checkDependency, (function(_this) {
-      return function(err) {
-        var c, currentMtime, currentVersion, f, k, l, len1, len2, loaderConfigs, m, mtime, newLoaders, oldLoaders, ref10, ref4, ref5, ref6, ref7, ref8, ref9, ruleDependencyConfigs, version;
-        if (err) {
-          return done(false);
+    return async.parallel({
+      checksumOutput: function(done) {
+        if (!options.paranoid) {
+          return done();
         }
-        loaderConfigs = (ref4 = obj.loaders) != null ? ref4.map(function(c) {
-          return c[0];
-        }) : void 0;
-        oldLoaders = loaderConfigs != null ? loaderConfigs.join("$$") : void 0;
-        newLoaders = rule.loaders.join("$$");
-        if (oldLoaders !== newLoaders) {
-          debug("Loaders for " + filename + " have changed (" + oldLoaders + " -> " + newLoaders + ")");
-          return done(false);
-        }
-        ref5 = obj.loaders;
-        for (k = 0, len1 = ref5.length; k < len1; k++) {
-          c = ref5[k];
-          l = c[0], (ref6 = c[1], version = ref6.version);
-          currentVersion = versionFromLoaderString(l);
-          if (currentVersion !== version) {
-            debug("Loader version for " + l + " (" + filename + ") has changed (" + version + " -> " + currentVersion + ")");
-            return done(false);
+        return Checksum.file(filename, function(err, csum) {
+          debug("Checking output " + filename);
+          if (csum === obj.outputChecksum) {
+            return done();
+          } else {
+            console.error("WARNING: " + filename + " has been modified since last compile, recompiling");
+            debug(filename + "'s output has been modified since last compile");
+            return done(new Error("CHANGED"));
           }
-        }
-        ruleDependencyConfigs = ((ref7 = obj.ruleDependencies) != null ? ref7.map(function(c) {
-          return c[0];
-        }) : void 0) || [];
-        if (((ref8 = rule.dependencies) != null ? ref8 : []).join("$$") !== ruleDependencyConfigs.join("$$")) {
-          debug("Rule dependencies for " + filename + " have changed");
-          return done(false);
-        }
-        ref9 = obj.ruleDependencies;
-        for (m = 0, len2 = ref9.length; m < len2; m++) {
-          c = ref9[m];
-          f = c[0], (ref10 = c[1], mtime = ref10.mtime);
-          currentMtime = (function() {
-            try {
-              return +fs.statSync(f).mtime;
-            } catch (undefined) {}
-          })();
-          if (!currentMtime || currentMtime > mtime) {
-            debug("Dependency " + f + " for " + filename + " has changed");
-            return done(false);
-          }
-        }
-        return done(true);
-      };
-    })(this));
+        });
+      },
+      checksumDependencies: function(done) {
+        return async.map(Object.keys(obj.dependencies), checkDependency, (function(_this) {
+          return function(err) {
+            var c, currentMtime, currentVersion, f, k, l, len1, len2, loaderConfigs, m, mtime, newLoaders, oldLoaders, ref10, ref4, ref5, ref6, ref7, ref8, ref9, ruleDependencyConfigs, version;
+            if (err) {
+              return done(err);
+            }
+            loaderConfigs = (ref4 = obj.loaders) != null ? ref4.map(function(c) {
+              return c[0];
+            }) : void 0;
+            oldLoaders = loaderConfigs != null ? loaderConfigs.join("$$") : void 0;
+            newLoaders = rule.loaders.join("$$");
+            if (oldLoaders !== newLoaders) {
+              debug("Loaders for " + filename + " have changed (" + oldLoaders + " -> " + newLoaders + ")");
+              return done(new Error("CHANGED"));
+            }
+            ref5 = obj.loaders;
+            for (k = 0, len1 = ref5.length; k < len1; k++) {
+              c = ref5[k];
+              l = c[0], (ref6 = c[1], version = ref6.version);
+              currentVersion = versionFromLoaderString(l);
+              if (currentVersion !== version) {
+                debug("Loader version for " + l + " (" + filename + ") has changed (" + version + " -> " + currentVersion + ")");
+                return done(new Error("CHANGED"));
+              }
+            }
+            ruleDependencyConfigs = ((ref7 = obj.ruleDependencies) != null ? ref7.map(function(c) {
+              return c[0];
+            }) : void 0) || [];
+            if (((ref8 = rule.dependencies) != null ? ref8 : []).join("$$") !== ruleDependencyConfigs.join("$$")) {
+              debug("Rule dependencies for " + filename + " have changed");
+              return done(new Error("CHANGED"));
+            }
+            ref9 = obj.ruleDependencies;
+            for (m = 0, len2 = ref9.length; m < len2; m++) {
+              c = ref9[m];
+              f = c[0], (ref10 = c[1], mtime = ref10.mtime);
+              currentMtime = (function() {
+                try {
+                  return +fs.statSync(f).mtime;
+                } catch (undefined) {}
+              })();
+              if (!currentMtime || currentMtime > mtime) {
+                debug("Dependency " + f + " for " + filename + " has changed");
+                return done(new Error("CHANGED"));
+              }
+            }
+            return done();
+          };
+        })(this));
+      }
+    }, function(err) {
+      return done(!err);
+    });
   };
   queue = new Queue(options, true);
   delayQueueEmptyForCallback = function(cb) {

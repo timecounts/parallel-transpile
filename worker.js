@@ -104,6 +104,7 @@ process.on('message', function(m) {
       if (sourceMapString) {
         fs.writeFileSync(mapPath, sourceMapString);
       }
+      details.outputChecksum = Checksum(src);
       return send({
         msg: 'complete',
         details: details

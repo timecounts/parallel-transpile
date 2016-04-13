@@ -78,6 +78,7 @@ process.on 'message', (m) ->
           """
       fs.writeFileSync(outPath, src)
       fs.writeFileSync(mapPath, sourceMapString) if sourceMapString
+      details.outputChecksum = Checksum(src)
       send {msg: 'complete', details: details}
 
     absoluteOutPath = Path.resolve(outPath)

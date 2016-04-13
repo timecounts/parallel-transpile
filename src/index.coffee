@@ -359,34 +359,48 @@ module.exports = (options, callback) ->
             return done new Error("CHANGED")
       else
         return done()
-    async.map Object.keys(obj.dependencies), checkDependency, (err) =>
-      if err
-        return done false
-      loaderConfigs = obj.loaders?.map((c) -> c[0])
-      oldLoaders = loaderConfigs?.join("$$")
-      newLoaders = rule.loaders.join("$$")
-      if oldLoaders != newLoaders
-        debug("Loaders for #{filename} have changed (#{oldLoaders} -> #{newLoaders})")
-        return done false
-      for c in obj.loaders
-        [l, {version}] = c
-        currentVersion = versionFromLoaderString(l)
-        if currentVersion != version
-          debug("Loader version for #{l} (#{filename}) has changed (#{version} -> #{currentVersion})")
-          return done false
-      ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
-      if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
-        debug("Rule dependencies for #{filename} have changed")
-        return done false
-      for c in obj.ruleDependencies
-        [f, {mtime}] = c
-        currentMtime =
-          try
-            +fs.statSync(f).mtime
-        if !currentMtime || currentMtime > mtime
-          debug("Dependency #{f} for #{filename} has changed")
-          return done false
-      return done true
+    return async.parallel
+      checksumOutput: (done) ->
+        if !options.paranoid
+          return done()
+        Checksum.file filename, (err, csum) ->
+          debug("Checking output #{filename}")
+          if csum is obj.outputChecksum
+            return done()
+          else
+            console.error("WARNING: #{filename} has been modified since last compile, recompiling")
+            debug("#{filename}'s output has been modified since last compile")
+            return done new Error("CHANGED")
+      checksumDependencies: (done) ->
+        async.map Object.keys(obj.dependencies), checkDependency, (err) =>
+          return done err if err
+          loaderConfigs = obj.loaders?.map((c) -> c[0])
+          oldLoaders = loaderConfigs?.join("$$")
+          newLoaders = rule.loaders.join("$$")
+          if oldLoaders != newLoaders
+            debug("Loaders for #{filename} have changed (#{oldLoaders} -> #{newLoaders})")
+            return done new Error("CHANGED")
+          for c in obj.loaders
+            [l, {version}] = c
+            currentVersion = versionFromLoaderString(l)
+            if currentVersion != version
+              debug("Loader version for #{l} (#{filename}) has changed (#{version} -> #{currentVersion})")
+              return done new Error("CHANGED")
+          ruleDependencyConfigs = obj.ruleDependencies?.map((c) -> c[0]) || []
+          if (rule.dependencies ? []).join("$$") != ruleDependencyConfigs.join("$$")
+            debug("Rule dependencies for #{filename} have changed")
+            return done new Error("CHANGED")
+          for c in obj.ruleDependencies
+            [f, {mtime}] = c
+            currentMtime =
+              try
+                +fs.statSync(f).mtime
+            if !currentMtime || currentMtime > mtime
+              debug("Dependency #{f} for #{filename} has changed")
+              return done new Error("CHANGED")
+          return done()
+      , (err) ->
+        return done(!err)
 
   queue = new Queue(options, true)
 
