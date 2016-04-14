@@ -45,7 +45,7 @@ setupTranspiler = (_options) -> (done) ->
 teardownTranspiler = (done) ->
   @transpiler?.kill()
   delete @transpiler
-  setTimeout done, 250 # Ugly hack to give children sufficient time to kill their workers
+  setTimeout done, 400 # Ugly hack to give children sufficient time to kill their workers
 
 transpileWait = (fn, timeout = 60000) -> (callback) ->
   done = ->
