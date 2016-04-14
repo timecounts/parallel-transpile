@@ -341,7 +341,6 @@ module.exports = (options, callback) ->
       debug("#{filename} not known")
       return done false
     checkDependency = (file, done) ->
-      debug("Checking dependency #{file}")
       {mtime, checksum} = obj.dependencies[file]
       stat2 =
         try
@@ -350,7 +349,6 @@ module.exports = (options, callback) ->
         debug("#{file} doesn't exist")
         return done new Error("NOEXIST")
       if +stat2.mtime > mtime
-        debug("#{file} mtime has changed (#{mtime} -> #{+stat2.mtime}), checking checksum")
         return Checksum.file file, (err, csum) ->
           if csum is checksum
             return done()

@@ -544,7 +544,6 @@ module.exports = function(options, callback) {
     }
     checkDependency = function(file, done) {
       var checksum, mtime, ref4, stat2;
-      debug("Checking dependency " + file);
       ref4 = obj.dependencies[file], mtime = ref4.mtime, checksum = ref4.checksum;
       stat2 = (function() {
         try {
@@ -556,7 +555,6 @@ module.exports = function(options, callback) {
         return done(new Error("NOEXIST"));
       }
       if (+stat2.mtime > mtime) {
-        debug(file + " mtime has changed (" + mtime + " -> " + (+stat2.mtime) + "), checking checksum");
         return Checksum.file(file, function(err, csum) {
           if (csum === checksum) {
             return done();
