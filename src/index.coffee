@@ -338,7 +338,6 @@ module.exports = (options, callback) ->
   upToDate = (filename, rule, done) ->
     obj = options.state.files[filename]
     unless obj
-      debug("#{filename} not known")
       return done false
     checkDependency = (file, done) ->
       {mtime, checksum} = obj.dependencies[file]

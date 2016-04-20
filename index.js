@@ -539,7 +539,6 @@ module.exports = function(options, callback) {
     var checkDependency, obj;
     obj = options.state.files[filename];
     if (!obj) {
-      debug(filename + " not known");
       return done(false);
     }
     checkDependency = function(file, done) {
