@@ -553,7 +553,7 @@ module.exports = function(options, callback) {
         debug(file + " doesn't exist");
         return done(new Error("NOEXIST"));
       }
-      if (+stat2.mtime > mtime) {
+      if (+stat2.mtime !== mtime) {
         return Checksum.file(file, function(err, csum) {
           if (csum === checksum) {
             return done();
@@ -623,7 +623,7 @@ module.exports = function(options, callback) {
                   return +fs.statSync(f).mtime;
                 } catch (undefined) {}
               })();
-              if (!currentMtime || currentMtime > mtime) {
+              if (!currentMtime || currentMtime !== mtime) {
                 debug("Dependency " + f + " for " + filename + " has changed");
                 return done(new Error("CHANGED"));
               }

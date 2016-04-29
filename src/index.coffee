@@ -347,7 +347,7 @@ module.exports = (options, callback) ->
       unless stat2
         debug("#{file} doesn't exist")
         return done new Error("NOEXIST")
-      if +stat2.mtime > mtime
+      if +stat2.mtime != mtime
         return Checksum.file file, (err, csum) ->
           if csum is checksum
             return done()
@@ -391,7 +391,7 @@ module.exports = (options, callback) ->
             currentMtime =
               try
                 +fs.statSync(f).mtime
-            if !currentMtime || currentMtime > mtime
+            if !currentMtime || currentMtime != mtime
               debug("Dependency #{f} for #{filename} has changed")
               return done new Error("CHANGED")
           return done()
