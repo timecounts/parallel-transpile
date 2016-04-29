@@ -101,7 +101,7 @@ class Queue extends EventEmitter
         if watcher
           deps.forEach (p) -> watcher.add(p)
         deps = deps.map (p) => Path.relative(@options.source, p)
-        debug "[#{bucket.id}] Processed: #{path} (deps: #{deps})"
+        debug "[#{bucket.id}] Processed: #{path}"#" (deps: #{deps})"
       else
         debug "[#{bucket.id}] Processed: #{path}"
       outPath = details.outPath
@@ -364,8 +364,8 @@ module.exports = (options, callback) ->
           if csum is obj.outputChecksum
             return done()
           else
-            console.error("WARNING: #{filename} has been modified since last compile, recompiling")
-            debug("#{filename}'s output has been modified since last compile")
+            console.error("WARNING: output file #{filename} has been modified since last compile, recompiling")
+            debug("Output file #{filename} has been modified since last compile")
             return done new Error("CHANGED")
       checksumDependencies: (done) ->
         async.map Object.keys(obj.dependencies), checkDependency, (err) =>

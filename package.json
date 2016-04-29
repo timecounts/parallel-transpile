@@ -1,6 +1,6 @@
 {
   "name": "parallel-transpile",
-  "version": "0.6.1-rc2",
+  "version": "0.6.1-rc3",
   "description": "Transpile files in parallel using all available CPUs",
   "main": "index.js",
   "bin": {

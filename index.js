@@ -181,7 +181,7 @@ Queue = (function(superClass) {
             return Path.relative(_this.options.source, p);
           };
         })(this));
-        debug("[" + bucket.id + "] Processed: " + path + " (deps: " + deps + ")");
+        debug("[" + bucket.id + "] Processed: " + path);
       } else {
         debug("[" + bucket.id + "] Processed: " + path);
       }
@@ -575,8 +575,8 @@ module.exports = function(options, callback) {
           if (csum === obj.outputChecksum) {
             return done();
           } else {
-            console.error("WARNING: " + filename + " has been modified since last compile, recompiling");
-            debug(filename + "'s output has been modified since last compile");
+            console.error("WARNING: output file " + filename + " has been modified since last compile, recompiling");
+            debug("Output file " + filename + " has been modified since last compile");
             return done(new Error("CHANGED"));
           }
         });

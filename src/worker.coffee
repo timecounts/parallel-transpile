@@ -54,6 +54,7 @@ process.on 'message', (m) ->
       catch err
         return send err
     src = fs.readFileSync(path)
+    srcChecksum = Checksum(src)
     sourceMaps = []
     remainingLoaderModules = webpackLoaders[..]
     i = remainingLoaderModules.length
@@ -94,7 +95,7 @@ process.on 'message', (m) ->
       dependencies: {
         "#{absolutePath}": {
           mtime: +stat.mtime
-          checksum: Checksum(fs.readFileSync(absolutePath))
+          checksum: srcChecksum
         }
       }
 
@@ -124,10 +125,12 @@ process.on 'message', (m) ->
             fileStat = fs.statSync Path.resolve(file)
             details.dependencies[Path.resolve(file)] =
               mtime: +fileStat.mtime
+              checksum: Checksum(fs.readFileSync(file))
           catch e
             console.error "FAILED TO STAT DEPENDENCY '#{file}' of '#{inFile}'"
             details.dependencies[Path.resolve(file)] =
               mtime: 0
+              checksum: ""
         dependency: addDependency
         resolveSync: EnhancedResolve.sync
         resolve: EnhancedResolve
