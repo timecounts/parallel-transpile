@@ -21,6 +21,7 @@ usage = ->
                             (can be called multiple times)
       -n, --newer         only build files newer than destination files
       -d, --delete        delete files that no longer have a source
+      -x, --paranoid      don't trust compiled code to be unmodified
 
     Types
 
@@ -50,6 +51,7 @@ minimistOptions =
     "t": "type"
     "n": "newer"
     "d": "delete"
+    "x": "paranoid"
 
   string: [
     "output"
@@ -62,6 +64,7 @@ minimistOptions =
     "watch"
     "newer"
     "delete"
+    "paranoid"
   ]
 
   multiple: [

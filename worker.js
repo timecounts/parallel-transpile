@@ -47,7 +47,7 @@ init = function(options) {
 };
 
 process.on('message', function(m) {
-  var _, absoluteOutPath, absolutePath, applyNext, baseName, details, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, obj, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, stat, webpackLoaders;
+  var _, absoluteOutPath, absolutePath, applyNext, baseName, details, err, error, error1, finished, fullPath, i, inExt, inFile, j, len, loader, loaderModule, mapPath, moduleName, obj, outExt, outFile, outPath, path, prevFile, query, ref1, ref2, relativePath, remainingLoaderModules, requestString, sourceMaps, src, srcChecksum, stat, webpackLoaders;
   try {
     if (m.init) {
       return init(m.init);
@@ -81,6 +81,7 @@ process.on('message', function(m) {
       }
     }
     src = fs.readFileSync(path);
+    srcChecksum = Checksum(src);
     sourceMaps = [];
     remainingLoaderModules = webpackLoaders.slice(0);
     i = remainingLoaderModules.length;
@@ -104,6 +105,7 @@ process.on('message', function(m) {
       if (sourceMapString) {
         fs.writeFileSync(mapPath, sourceMapString);
       }
+      details.outputChecksum = Checksum(src);
       return send({
         msg: 'complete',
         details: details
@@ -121,7 +123,7 @@ process.on('message', function(m) {
         obj = {},
         obj["" + absolutePath] = {
           mtime: +stat.mtime,
-          checksum: Checksum(fs.readFileSync(absolutePath))
+          checksum: srcChecksum
         },
         obj
       )
@@ -159,13 +161,15 @@ process.on('message', function(m) {
           try {
             fileStat = fs.statSync(Path.resolve(file));
             return details.dependencies[Path.resolve(file)] = {
-              mtime: +fileStat.mtime
+              mtime: +fileStat.mtime,
+              checksum: Checksum(fs.readFileSync(file))
             };
           } catch (error1) {
             e = error1;
             console.error("FAILED TO STAT DEPENDENCY '" + file + "' of '" + inFile + "'");
             return details.dependencies[Path.resolve(file)] = {
-              mtime: 0
+              mtime: 0,
+              checksum: ""
             };
           }
         },
